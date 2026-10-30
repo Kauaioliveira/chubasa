@@ -226,22 +226,53 @@ class VerificadorFalso:
         self.chamadas.append((palavra, comando))
 
 
-def test_escutar_verifica_palavra_mais_comando(monkeypatch):
-    # 3 frames sem nada, detecção no 4º, depois 2 s de "comando" (25 frames) e mais 5 frames.
+class GravadorFalso:
+    """Consome N frames como 'comando' e devolve palavra + comando."""
+
+    def __init__(self, n_frames=25, teve_fala=True):
+        self.n_frames = n_frames
+        self.teve_fala = teve_fala
+
+    def gravar(self, frames, audio_palavra):
+        comando = [next(frames) for _ in range(self.n_frames)]
+        from chubasa.vad import ResultadoGravacao
+
+        motivo = "fim_de_fala" if self.teve_fala else "sem_fala"
+        return ResultadoGravacao(motivo, audio_palavra, np.concatenate(comando) if self.teve_fala else
+                                 np.zeros(0, np.int16))
+
+
+def test_escutar_verifica_palavra_mais_comando(monkeypatch, tmp_path):
+    # 3 frames sem nada, detecção no 4º, depois 25 frames de "comando" e mais 5 frames.
     sinal = np.arange(33 * AMOSTRAS_POR_FRAME, dtype=np.int64).astype(np.int16)
-    detector, _ = criar([0.0, 0.0, 0.0, 0.9], cooldown=10.0)
+    detector, modelo = criar([0.0, 0.0, 0.0, 0.9], cooldown=10.0)
     monkeypatch.setattr(wakeword, "criar_detector", lambda _config: detector)
     monkeypatch.setattr(wakeword, "Microfone", lambda _disp: MicrofoneFalso(sinal))
     monkeypatch.setattr(wakeword, "tocar_bip", lambda: None)
     verificador = VerificadorFalso()
+    destino = tmp_path / "comando.wav"
 
-    assert wakeword.comando_escutar(SimpleNamespace(), None, verificador, segundos_comando=2.0) == 0
+    assert wakeword.comando_escutar(SimpleNamespace(), None, verificador, GravadorFalso(), destino) == 0
 
     assert verificador.preparado
     assert len(verificador.chamadas) == 1
     palavra, comando = verificador.chamadas[0]
     np.testing.assert_array_equal(palavra, sinal[:4 * AMOSTRAS_POR_FRAME])
     np.testing.assert_array_equal(comando, sinal[4 * AMOSTRAS_POR_FRAME:29 * AMOSTRAS_POR_FRAME])
+    assert len(modelo.frames) == 33  # o detector viu também os frames do comando
+    assert destino.exists()
+
+
+def test_escutar_sem_fala_nao_verifica(monkeypatch):
+    detector, _ = criar([0.9], cooldown=10.0)
+    monkeypatch.setattr(wakeword, "criar_detector", lambda _config: detector)
+    monkeypatch.setattr(wakeword, "Microfone", lambda _disp: MicrofoneFalso(np.zeros(40 * AMOSTRAS_POR_FRAME, np.int16)))
+    monkeypatch.setattr(wakeword, "tocar_bip", lambda: None)
+    verificador = VerificadorFalso()
+
+    wakeword.comando_escutar(SimpleNamespace(), None, verificador, GravadorFalso(teve_fala=False))
+
+    assert verificador.chamadas == []
 
 
 def test_escutar_sem_cadastro_nao_espera_comando(monkeypatch):

@@ -184,9 +184,14 @@ def tocar_bip() -> None:
 
 # ---------------------------------------------------------------- comando
 
-def comando_escutar(config, dispositivo: int | None, verificador=None, segundos_comando: float = 2.0) -> int:
-    """Detecta a palavra-chave e loga o score. Com `verificador` ativo, também confere a voz usando
-    a palavra-chave + os `segundos_comando` seguintes (o mesmo trecho que o loop principal vai usar)."""
+def comando_escutar(config, dispositivo: int | None, verificador=None, gravador=None,
+                    salvar_comando: Path | None = None) -> int:
+    """Detecta a palavra-chave e loga o score.
+
+    Com `gravador` (Bloco 3), grava o comando depois do bip até o silêncio; com `verificador` ativo,
+    confere a voz usando palavra-chave + comando (o mesmo trecho que o loop principal vai usar).
+    `salvar_comando` grava o último comando num WAV para conferir o corte (só quando pedido).
+    """
     detector = criar_detector(config)
     if verificador is not None:
         verificador.preparar()
@@ -200,14 +205,8 @@ def comando_escutar(config, dispositivo: int | None, verificador=None, segundos_
                 if deteccao is not None:
                     log.info("Palavra-chave detectada! score=%.3f", deteccao.score)
                     tocar_bip()
-                    if verificador is not None and verificador.ativo:
-                        palavra = detector.audio_recente()
-                        comando = []
-                        for _ in range(math.ceil(segundos_comando / DURACAO_FRAME)):
-                            proximo = mic.ler()
-                            detector.processar(proximo)  # mantém o fluxo do modelo contínuo
-                            comando.append(proximo)
-                        verificador.verificar(palavra, np.concatenate(comando))
+                    if gravador is not None:
+                        _gravar_e_verificar(mic, detector, gravador, verificador, salvar_comando)
                     pico = 0.0
                     inicio_janela = time.monotonic()
                     continue
@@ -224,3 +223,22 @@ def comando_escutar(config, dispositivo: int | None, verificador=None, segundos_
     except KeyboardInterrupt:
         print()
     return 0
+
+
+def _gravar_e_verificar(mic, detector: DetectorPalavra, gravador, verificador, salvar_comando: Path | None) -> None:
+    def frames_alimentando_detector():
+        # O detector continua vendo o áudio: o fluxo do modelo não fica com buraco depois do comando.
+        for frame in mic.frames():
+            detector.processar(frame)
+            yield frame
+
+    resultado = gravador.gravar(frames_alimentando_detector(), detector.audio_recente())
+    if not resultado.teve_fala:
+        return
+    if salvar_comando is not None:
+        from chubasa.audio import salvar_wav
+
+        salvar_wav(salvar_comando, resultado.audio_comando)
+        log.info("comando salvo em %s", salvar_comando)
+    if verificador is not None and verificador.ativo:
+        verificador.verificar(resultado.audio_palavra, resultado.audio_comando)

@@ -48,6 +48,13 @@ class Config(BaseSettings):
     speaker_profile_path: Path = Path("models/voz.npy")
     speaker_threshold: float = Field(default=0.40, gt=-1, lt=1)
 
+    # Gravação do comando com VAD (Bloco 3)
+    vad_threshold: float = Field(default=0.5, gt=0, lt=1)
+    vad_silence_end_s: float = Field(default=1.0, gt=0)
+    vad_no_speech_timeout_s: float = Field(default=5.0, gt=0)
+    vad_max_recording_s: float = Field(default=30.0, gt=0)
+    vad_preroll_s: float = Field(default=0.3, ge=0)
+
     @field_validator("models_dir", "wake_model_path", "speaker_profile_path")
     @classmethod
     def _relativo_a_raiz(cls, valor: Path) -> Path:

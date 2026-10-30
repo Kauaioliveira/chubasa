@@ -35,7 +35,8 @@ cobrado por token.
 python -m chubasa dispositivos   # lista os microfones (use número ou parte do nome em MIC_DEVICE)
 python -m chubasa gravar-teste   # grava 5 s em teste.wav
 python -m chubasa medidor        # volume do microfone ao vivo (Ctrl+C para sair)
-python -m chubasa escutar        # detecta a palavra-chave e mostra o score (bip ao detectar)
+python -m chubasa escutar        # detecta a palavra-chave, grava o comando até você parar de falar
+python -m chubasa escutar --salvar-comando comando.wav   # idem, salvando o último comando para ouvir
 python -m chubasa cadastrar-voz  # grava 10 a 20 frases suas e salva a impressão de voz
 ```
 
@@ -48,6 +49,14 @@ voz, siga [treino/LEIA-ME.md](treino/LEIA-ME.md).
 
 Ajustes no `.env`: `WAKE_THRESHOLD` (score mínimo, 0 a 1) e `WAKE_COOLDOWN_S` (tempo ignorando
 novas detecções depois de uma). Os modelos baixados ficam em `models/openwakeword/`.
+
+## Gravação do comando
+
+Depois do bip, o Chubasa grava o comando com o [Silero VAD](https://github.com/snakers4/silero-vad)
+(ONNX, local, baixado na primeira vez para `models/silero/`): começa quando você fala, guarda um
+pedacinho de antes (`VAD_PREROLL_S`) para não cortar a primeira sílaba e para depois de
+`VAD_SILENCE_END_S` de silêncio. Se ninguém falar em `VAD_NO_SPEECH_TIMEOUT_S`, volta a dormir;
+nenhum comando passa de `VAD_MAX_RECORDING_S`.
 
 ## Verificação de voz
 

@@ -25,7 +25,9 @@ def criar_parser() -> argparse.ArgumentParser:
     medidor = sub.add_parser("medidor", help="mostra o volume do microfone ao vivo")
     medidor.add_argument("--segundos", type=float, default=None, help="para sozinho depois de N s")
 
-    sub.add_parser("escutar", help="detecta a palavra-chave, mostra o score e confere a voz cadastrada")
+    escutar = sub.add_parser("escutar", help="detecta a palavra-chave, grava o comando e confere a voz")
+    escutar.add_argument("--salvar-comando", type=Path, default=None, metavar="ARQUIVO.wav",
+                         help="salva o último comando gravado (para conferir o corte do VAD)")
 
     cadastro = sub.add_parser("cadastrar-voz", help="grava frases suas e salva a impressão de voz")
     cadastro.add_argument("--frases", type=int, default=15, help="quantas frases ler (10 a 20)")
@@ -48,9 +50,11 @@ def executar(args: argparse.Namespace, config: Config) -> int:
         return audio.comando_medidor(dispositivo, args.segundos)
     if args.comando == "escutar":
         from chubasa.speaker import criar_verificador
+        from chubasa.vad import criar_gravador
         from chubasa.wakeword import comando_escutar
 
-        return comando_escutar(config, dispositivo, criar_verificador(config))
+        return comando_escutar(config, dispositivo, criar_verificador(config), criar_gravador(config),
+                               args.salvar_comando)
     if args.comando == "cadastrar-voz":
         from chubasa.speaker import comando_cadastrar_voz
 
@@ -73,6 +77,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from chubasa.audio import ErroDeAudio
     from chubasa.speaker import ErroVoz
+    from chubasa.vad import ErroVAD
     from chubasa.wakeword import ErroWakeWord
 
     try:
@@ -85,6 +90,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except ErroVoz as erro:
         print(f"Erro na verificação de voz: {erro}", file=sys.stderr)
+        return 1
+    except ErroVAD as erro:
+        print(f"Erro no detector de fala: {erro}", file=sys.stderr)
         return 1
 
 
