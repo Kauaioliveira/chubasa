@@ -299,7 +299,7 @@ class Assistente:
             if self._parar.is_set():
                 self._calar()
                 break
-            frame = await self._ler(timeout=0.2)
+            frame = await self._ler()  # frames chegam a cada 80 ms; o timeout só pega microfone travado
             if frame is None or not self.interrupcao:
                 continue
             deteccao = self.c.detector.processar(frame)
@@ -330,7 +330,7 @@ class Assistente:
         self._mudar(Estado.FALANDO)
         self.c.falante.falar(texto)
         while self.c.falante.falando.is_set() and not self._parar.is_set():
-            await self._ler(timeout=0.2)  # continua drenando o microfone
+            await self._ler()  # continua drenando o microfone
 
     async def _descartar_eco(self) -> None:
         """Depois de falar: joga fora o áudio da própria voz e o rabo de eco da sala."""
@@ -338,7 +338,7 @@ class Assistente:
             return
         self._mic.descartar_pendentes()
         for _ in range(math.ceil(RABO_DE_ECO_S / DURACAO_FRAME)):  # conta frames: vale em tempo de áudio
-            if self._parar.is_set() or await self._ler(timeout=DURACAO_FRAME * 3) is None:
+            if self._parar.is_set() or await self._ler() is None:
                 break
         self.c.detector.reiniciar()
 
