@@ -22,6 +22,7 @@ dependencies = [
     "tqdm>=4.66",
     "requests>=2.31",
     "faster-whisper>=1.1,<2",
+    "claude-agent-sdk>=0.2,<0.3",
 ]
 
 [project.optional-dependencies]

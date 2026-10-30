@@ -39,6 +39,7 @@ python -m chubasa escutar        # detecta a palavra-chave, grava o comando até
 python -m chubasa escutar --salvar-comando comando.wav   # idem, salvando o último comando para ouvir
 python -m chubasa cadastrar-voz  # grava 10 a 20 frases suas e salva a impressão de voz
 python -m chubasa transcrever    # fale depois do bip e veja o texto (ou passe um WAV de 16 kHz)
+python -m chubasa perguntar "pergunta 1" "pergunta 2"   # conversa por texto, mostrando o tempo de cada frase
 ```
 
 ## Palavra-chave
@@ -75,6 +76,25 @@ Medido num Intel i7-8550U (4 núcleos, 2017), frase de 4,7 s, CPU `int8`, `beam_
 Se a resposta parecer lenta, troque para `STT_MODEL=base`. GPU (`STT_DEVICE=cuda`) exige placa
 NVIDIA com driver para CUDA 12 e as bibliotecas cuBLAS/cuDNN 12; com driver antigo dá
 "CUDA driver version is insufficient", e o padrão `cpu` funciona em qualquer máquina.
+
+## Conversa (Claude pelo plano Pro)
+
+O Chubasa conversa pelo [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python),
+usando o **login do Claude Code** da máquina (plano Pro), sem chave de API. Antes do primeiro uso,
+faça o login uma vez no terminal:
+
+```powershell
+claude        # dentro dele, use /login e entre com a conta do plano
+```
+
+- `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` e `ANTHROPIC_BASE_URL` são removidas do ambiente antes
+  de abrir a conversa: o uso nunca vira cobrança por token nem vai para outro servidor.
+- Sem ferramentas (não lê arquivos, não roda comandos), sem settings nem CLAUDE.md de usuário/projeto
+  e sem servidores MCP: só conversa.
+- A conversa fica aberta entre perguntas (histórico e menos espera). A resposta chega em streaming
+  e é cortada em frases para a fala começar antes do fim.
+- Sem internet, limite do plano, falta de login ou demora viram uma frase falada de aviso.
+- Modelo em `BRAIN_MODEL` (padrão `sonnet`; `haiku` responde mais rápido).
 
 ## Verificação de voz
 

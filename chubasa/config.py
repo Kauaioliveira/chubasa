@@ -62,6 +62,11 @@ class Config(BaseSettings):
     stt_beam_size: int = Field(default=1, ge=1, le=10)
     stt_cpu_threads: int = Field(default=0, ge=0)
 
+    # Conversa com o Claude (Bloco 5)
+    brain_model: str = Field(default="sonnet", min_length=1)
+    brain_timeout_first_s: float = Field(default=30.0, gt=0)
+    brain_timeout_total_s: float = Field(default=90.0, gt=0)
+
     @field_validator("stt_device")
     @classmethod
     def _dispositivo_stt(cls, valor: str) -> str:
@@ -119,7 +124,7 @@ def _mensagem_de_erro(erro: ValidationError, arquivo: Path) -> str:
 
 
 # Bibliotecas que falam demais em INFO (requisições HTTP, progresso); só aparecem em DEBUG.
-BIBLIOTECAS_RUIDOSAS = ("httpx", "httpx2", "huggingface_hub", "faster_whisper", "speechbrain")
+BIBLIOTECAS_RUIDOSAS = ("httpx", "httpx2", "huggingface_hub", "faster_whisper", "speechbrain", "claude_agent_sdk")
 
 
 def configurar_logging(nivel: str = "INFO") -> None:

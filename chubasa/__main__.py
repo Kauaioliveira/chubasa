@@ -32,6 +32,9 @@ def criar_parser() -> argparse.ArgumentParser:
     transcrever = sub.add_parser("transcrever", help="transcreve um WAV ou o que você falar depois do bip")
     transcrever.add_argument("arquivo", type=Path, nargs="?", default=None, help="WAV de 16 kHz (opcional)")
 
+    perguntar = sub.add_parser("perguntar", help="conversa com o Claude por texto (testa o Bloco 5)")
+    perguntar.add_argument("perguntas", nargs="*", help="perguntas em sequência; sem nenhuma, modo interativo")
+
     cadastro = sub.add_parser("cadastrar-voz", help="grava frases suas e salva a impressão de voz")
     cadastro.add_argument("--frases", type=int, default=15, help="quantas frases ler (10 a 20)")
     cadastro.add_argument("--segundos", type=float, default=5.0, help="duração máxima de cada frase")
@@ -41,6 +44,11 @@ def criar_parser() -> argparse.ArgumentParser:
 
 def executar(args: argparse.Namespace, config: Config) -> int:
     # Importa só o que o comando usa: mantém `python -m chubasa` rápido.
+    if args.comando == "perguntar":
+        from chubasa.brain import comando_perguntar
+
+        return comando_perguntar(config, args.perguntas)
+
     from chubasa import audio
 
     if args.comando == "dispositivos":
