@@ -72,6 +72,18 @@ class Config(BaseSettings):
     loop_barge_in: bool = True
     loop_barge_in_threshold: float = Field(default=0.8, gt=0, lt=1)
 
+    # Ferramentas (Bloco 8)
+    tools_enabled: bool = True
+    tools_programs: str = "bloco de notas:notepad.exe;calculadora:calc.exe;chrome:chrome.exe;navegador:chrome.exe"
+
+    @field_validator("tools_programs")
+    @classmethod
+    def _programas_validos(cls, valor: str) -> str:
+        from chubasa.tools.programas import ProgramasPermitidos
+
+        ProgramasPermitidos.do_texto(valor)  # levanta ValueError dizendo qual item está errado
+        return valor
+
     # Texto para fala (Bloco 6)
     tts_engine: str = "piper"
     tts_voice: str = Field(default="pt_BR-faber-medium", min_length=1)

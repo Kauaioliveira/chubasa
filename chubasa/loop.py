@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 
 RABO_DE_ECO_S = 0.3  # áudio descartado depois que o assistente para de falar
 FALA_ESQUECI = "Pronto, esqueci a nossa conversa."
+FALA_FALHA_INTERNA = "Tive um problema aqui dentro. Pode repetir?"
 
 
 class Estado(str, Enum):
@@ -90,6 +91,7 @@ class Componentes:
     falante: Any  # tts.Falante
     abrir_microfone: Callable[[], Any]  # devolve um context manager com ler()/descartar_pendentes()
     bip: Callable[[], None]
+    ferramentas: Any = None  # tools.Ferramentas (timers são cancelados ao encerrar)
 
 
 class Assistente:
@@ -173,6 +175,8 @@ class Assistente:
             self.c.falante.interromper()
         if self._tarefa_resposta is not None and not self._tarefa_resposta.done():
             self._tarefa_resposta.cancel()
+        if self.c.ferramentas is not None:
+            self.c.ferramentas.fechar()
         await self.c.cerebro.fechar()
         log.info("Assistente encerrado.")
 
@@ -201,7 +205,15 @@ class Assistente:
             deteccao = self.c.detector.processar(frame)
             if deteccao is not None:
                 log.info("Palavra-chave detectada (score %.2f)", deteccao.score)
-                await self._atender(self.c.detector.audio_recente())
+                try:
+                    await self._atender(self.c.detector.audio_recente())
+                except ErroDeAudio:
+                    raise  # microfone: rodar() reabre
+                except Exception:
+                    # Um erro numa interação (ex.: falta de memória na transcrição) não pode
+                    # derrubar o assistente: avisa, registra e volta a dormir.
+                    log.exception("Erro durante o atendimento; voltando a dormir.")
+                    self.c.falante.falar(FALA_FALHA_INTERNA)
                 self._mudar(Estado.DORMINDO)
 
     async def _atender(self, audio_palavra: np.ndarray) -> None:
@@ -334,7 +346,7 @@ class Assistente:
 def criar_assistente(config, dispositivo: int | None, ao_mudar_estado=None) -> Assistente:
     """Carrega todos os modelos uma vez, antes de começar a ouvir."""
     from chubasa.audio import Microfone
-    from chubasa.brain import criar_cerebro
+    from chubasa.brain import criar_cerebro, criar_ferramentas_se_ligadas
     from chubasa.speaker import criar_verificador
     from chubasa.stt import criar_transcritor
     from chubasa.tts import criar_falante
@@ -348,10 +360,16 @@ def criar_assistente(config, dispositivo: int | None, ao_mudar_estado=None) -> A
     verificador.preparar()
     transcritor = criar_transcritor(config)
     falante = criar_falante(config)
-    cerebro = criar_cerebro(config)
+
+    def avisar(texto: str) -> None:  # chamado pela thread do timer
+        tocar_bip()
+        falante.falar(texto)
+
+    ferramentas = criar_ferramentas_se_ligadas(config, avisar)
+    cerebro = criar_cerebro(config, ferramentas)
     log.info("Modelos carregados em %.1f s", time.perf_counter() - inicio)
     componentes = Componentes(detector, gravador, verificador, transcritor, cerebro, falante,
-                              lambda: Microfone(dispositivo), tocar_bip)
+                              lambda: Microfone(dispositivo), tocar_bip, ferramentas)
     return Assistente(componentes, config.loop_conversation_s, config.loop_barge_in,
                       config.loop_barge_in_threshold, ao_mudar_estado)
 

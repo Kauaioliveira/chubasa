@@ -27,10 +27,25 @@ Regras:
 - Escreva números, horas e siglas de um jeito natural de falar.
 - Nunca diga a palavra "Chubasa" nem qualquer nome para si mesmo. Se perguntarem seu nome, \
 diga que é o assistente de voz da casa.
-- Você não tem acesso a internet, arquivos, relógio nem ferramentas. Se precisar disso para \
-responder, diga numa frase que ainda não consegue fazer isso.
 - Use o que já foi dito na conversa quando a pergunta depender disso.
 """
+
+PROMPT_SEM_FERRAMENTAS = """\
+- Você não tem acesso a internet, arquivos, relógio nem ferramentas. Se precisar disso para \
+responder, diga numa frase que ainda não consegue fazer isso.
+"""
+
+PROMPT_COM_FERRAMENTAS = """\
+- Você tem ferramentas para saber a data e a hora, criar, listar e cancelar timers e lembretes, \
+e abrir alguns programas do computador. Use-as quando o pedido precisar; para hora e data, \
+sempre consulte a ferramenta. Depois de usar, confirme em uma frase curta.
+- Não tem acesso a internet nem a arquivos. Se pedirem algo fora disso, diga numa frase que \
+ainda não consegue.
+"""
+
+
+def montar_prompt(com_ferramentas: bool) -> str:
+    return SYSTEM_PROMPT + (PROMPT_COM_FERRAMENTAS if com_ferramentas else PROMPT_SEM_FERRAMENTAS)
 
 # Ferramentas embutidas que nunca podem rodar (além de `tools=[]`, que já desliga todas)
 FERRAMENTAS_BLOQUEADAS = [
@@ -86,17 +101,27 @@ def tem_internet(host: str = "api.anthropic.com", porta: int = 443, timeout: flo
         return False
 
 
-def criar_opcoes(modelo: str) -> Any:
+def criar_opcoes(modelo: str, ferramentas: Any = None) -> Any:
+    """`ferramentas` (chubasa.tools.Ferramentas) vira um servidor MCP no próprio processo; só as
+    ferramentas dele ficam liberadas (allowlist). As embutidas do Claude Code continuam desligadas."""
     from claude_agent_sdk import ClaudeAgentOptions
+
+    servidores = {}
+    permitidas: list[str] = []
+    if ferramentas is not None:
+        from chubasa.tools import NOME_SERVIDOR
+
+        servidores[NOME_SERVIDOR] = ferramentas.servidor()
+        permitidas = ferramentas.nomes_permitidos
 
     return ClaudeAgentOptions(
         model=modelo,
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=montar_prompt(ferramentas is not None),
         tools=[],  # nenhuma ferramenta embutida
-        allowed_tools=[],
+        allowed_tools=permitidas,
         disallowed_tools=list(FERRAMENTAS_BLOQUEADAS),
         setting_sources=[],  # não carrega settings nem CLAUDE.md de usuário/projeto
-        mcp_servers={},
+        mcp_servers=servidores,
         strict_mcp_config=True,  # ignora servidores MCP configurados na máquina
         include_partial_messages=True,  # streaming de texto
         thinking={"type": "disabled"},  # menos latência numa conversa curta
@@ -262,8 +287,17 @@ class Cerebro:
                 return
 
 
-def criar_cerebro(config) -> Cerebro:
-    return Cerebro(config.brain_model, config.brain_timeout_first_s, config.brain_timeout_total_s)
+def criar_cerebro(config, ferramentas: Any = None) -> Cerebro:
+    return Cerebro(config.brain_model, config.brain_timeout_first_s, config.brain_timeout_total_s,
+                   criar_opcoes_fn=lambda modelo: criar_opcoes(modelo, ferramentas))
+
+
+def criar_ferramentas_se_ligadas(config, avisar: Callable[[str], None]) -> Any:
+    if not config.tools_enabled:
+        return None
+    from chubasa.tools import criar_ferramentas
+
+    return criar_ferramentas(config, avisar)
 
 
 # ---------------------------------------------------------------- frases para o TTS
@@ -309,7 +343,21 @@ async def frases(pedacos: AsyncIterator[str], minimo: int = 12, maximo: int = 22
 # ---------------------------------------------------------------- comando
 
 async def _conversar(config, perguntas: list[str], falante=None) -> int:
-    async with criar_cerebro(config) as cerebro:
+    def avisar(texto: str) -> None:
+        print(f"  [aviso] {texto}", flush=True)
+        if falante is not None:
+            falante.falar(texto)
+
+    ferramentas = criar_ferramentas_se_ligadas(config, avisar)
+    try:
+        return await _conversar_com(perguntas, falante, criar_cerebro(config, ferramentas))
+    finally:
+        if ferramentas is not None:
+            ferramentas.fechar()
+
+
+async def _conversar_com(perguntas: list[str], falante, cerebro_novo) -> int:
+    async with cerebro_novo as cerebro:
         interativo = not perguntas
         if interativo:
             print("Converse digitando (linha vazia para sair).", flush=True)

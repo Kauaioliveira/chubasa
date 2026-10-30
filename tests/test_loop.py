@@ -354,3 +354,22 @@ def test_pergunta_vai_sem_a_palavra_chave():
     assistente, c, _, _ = montar(roteiro(PALAVRA), gravacoes=[True, False], textos=["Hey Chubasa, que horas são?"])
     rodar(assistente)
     assert c.cerebro.perguntas == ["que horas são?"]
+
+
+def test_erro_numa_interacao_nao_derruba_o_assistente():
+    assistente, c, _, _ = montar(roteiro(PALAVRA, ".", ".", ".", PALAVRA), gravacoes=[True, True, False],
+                                 textos=["primeira", "segunda"], conversa_s=0)
+    original = c.transcritor.transcrever
+    chamadas = []
+
+    def transcrever(audio):
+        chamadas.append(1)
+        if len(chamadas) == 1:
+            raise RuntimeError("mkl_malloc: failed to allocate memory")
+        return original(audio)
+
+    c.transcritor.transcrever = transcrever
+    rodar(assistente)
+
+    assert loop.FALA_FALHA_INTERNA in c.falante.falas
+    assert len(chamadas) == 2  # a segunda palavra-chave foi atendida normalmente
