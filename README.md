@@ -23,6 +23,14 @@ Tudo fica no `.env` (veja `.env.example`). Nenhuma chave de API é usada: se a v
 `ANTHROPIC_API_KEY` existir no sistema, o Chubasa avisa no log, porque com ela o uso passa a ser
 cobrado por token.
 
+## Comandos
+
+```powershell
+python -m chubasa dispositivos   # lista os microfones (use número ou parte do nome em MIC_DEVICE)
+python -m chubasa gravar-teste   # grava 5 s em teste.wav
+python -m chubasa medidor        # volume do microfone ao vivo (Ctrl+C para sair)
+```
+
 ## Testes
 
 ```powershell
