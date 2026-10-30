@@ -1,0 +1,26 @@
+# Serviço do usuário (systemd --user) para rodar o Chubasa no Linux, sem bandeja.
+#
+# Instalação (ajuste o caminho em WorkingDirectory/ExecStart se o projeto não estiver em ~/chubasa):
+#   mkdir -p ~/.config/systemd/user
+#   cp scripts/chubasa.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now chubasa
+# Logs: journalctl --user -u chubasa -f   (e o arquivo em ~/.local/state/chubasa/chubasa.log)
+# Parar/remover: systemctl --user disable --now chubasa
+
+[Unit]
+Description=Chubasa - assistente de voz
+# Precisa da sessão gráfica/áudio do usuário (PipeWire/PulseAudio)
+After=graphical-session.target pipewire.service pulseaudio.service
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/chubasa
+ExecStart=%h/chubasa/.venv/bin/python -m chubasa
+Restart=on-failure
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

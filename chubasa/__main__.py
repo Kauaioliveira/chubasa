@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from chubasa.config import Config, ConfiguracaoInvalida, iniciar
+from chubasa.config import ARQUIVO_LOG, Config, ConfiguracaoInvalida, iniciar, pasta_de_logs
 
 
 def criar_parser() -> argparse.ArgumentParser:
@@ -14,6 +14,8 @@ def criar_parser() -> argparse.ArgumentParser:
         prog="python -m chubasa",
         description="Assistente de voz Chubasa. Sem comando, roda o assistente.",
     )
+    parser.add_argument("--bandeja", action="store_true",
+                        help="roda com ícone na bandeja, sem janela (use com pythonw)")
     sub = parser.add_subparsers(dest="comando", metavar="comando")
 
     sub.add_parser("config", help="só confere a configuração (.env) e sai")
@@ -65,6 +67,10 @@ def executar(args: argparse.Namespace, config: Config) -> int:
         return audio.comando_dispositivos()
 
     dispositivo = audio.resolver_dispositivo(config.mic_device)
+    if args.bandeja:
+        from chubasa.tray import comando_bandeja
+
+        return comando_bandeja(config, dispositivo)
     if args.comando is None:
         from chubasa.loop import comando_assistente
 
@@ -94,10 +100,17 @@ def executar(args: argparse.Namespace, config: Config) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = criar_parser().parse_args(argv)
+    # O assistente (console ou bandeja) também registra em arquivo; a bandeja, só em arquivo.
+    roda_assistente = args.bandeja or args.comando is None
+    arquivo_log = pasta_de_logs() / ARQUIVO_LOG if roda_assistente else None
     try:
-        config = iniciar()
+        config = iniciar(arquivo_log=arquivo_log, console=not args.bandeja)
     except ConfiguracaoInvalida as erro:
         print(erro, file=sys.stderr)
+        if args.bandeja and arquivo_log is not None:  # pythonw não tem console: deixa no log
+            arquivo_log.parent.mkdir(parents=True, exist_ok=True)
+            with arquivo_log.open("a", encoding="utf-8") as arquivo:
+                arquivo.write(f"{erro}\n")
         return 2
 
     if args.comando == "config":
@@ -131,6 +144,11 @@ def main(argv: list[str] | None = None) -> int:
     except ErroTTS as erro:
         print(f"Erro na voz: {erro}", file=sys.stderr)
         return 1
+
+
+def main_bandeja() -> int:
+    """Entrada do chubasa-bandeja (sem console)."""
+    return main(["--bandeja"])
 
 
 if __name__ == "__main__":

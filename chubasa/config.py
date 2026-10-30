@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from collections.abc import Mapping
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from pydantic import Field, ValidationError, field_validator
@@ -157,13 +159,41 @@ def _mensagem_de_erro(erro: ValidationError, arquivo: Path) -> str:
 BIBLIOTECAS_RUIDOSAS = ("httpx", "httpx2", "huggingface_hub", "faster_whisper", "speechbrain", "claude_agent_sdk")
 
 
-def configurar_logging(nivel: str = "INFO") -> None:
-    logging.basicConfig(
-        level=nivel,
-        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-        force=True,
-    )
+FORMATO_LOG = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
+ARQUIVO_LOG = "chubasa.log"
+
+
+def pasta_de_logs(ambiente: Mapping[str, str] | None = None, plataforma: str = sys.platform) -> Path:
+    """Windows: %LOCALAPPDATA%\\Chubasa\\logs; Linux: $XDG_STATE_HOME/chubasa (~/.local/state/chubasa);
+    macOS: ~/Library/Logs/Chubasa."""
+    ambiente = os.environ if ambiente is None else ambiente
+    if plataforma == "win32":
+        base = ambiente.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+        return Path(base) / "Chubasa" / "logs"
+    if plataforma == "darwin":
+        return Path.home() / "Library" / "Logs" / "Chubasa"
+    base = ambiente.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
+    return Path(base) / "chubasa"
+
+
+def configurar_logging(nivel: str = "INFO", arquivo: Path | None = None, console: bool = True) -> None:
+    """Console (opcional) + arquivo com rotação (1 MB x 5 arquivos), se `arquivo` for dado."""
+    manipuladores: list[logging.Handler] = []
+    if console and sys.stderr is not None:  # pythonw não tem console
+        manipuladores.append(logging.StreamHandler())
+    if arquivo is not None:
+        try:
+            arquivo.parent.mkdir(parents=True, exist_ok=True)
+            manipuladores.append(RotatingFileHandler(arquivo, maxBytes=1_000_000, backupCount=5,
+                                                     encoding="utf-8"))
+        except OSError as erro:
+            if sys.stderr is not None:
+                print(f"Não consegui abrir o log {arquivo}: {erro}", file=sys.stderr)
+    logging.basicConfig(level=nivel, format=FORMATO_LOG, datefmt="%H:%M:%S", force=True,
+                        handlers=manipuladores or [logging.NullHandler()])
+    for manipulador in manipuladores:
+        if isinstance(manipulador, RotatingFileHandler):
+            manipulador.setFormatter(logging.Formatter(FORMATO_LOG, datefmt="%Y-%m-%d %H:%M:%S"))
     for nome in BIBLIOTECAS_RUIDOSAS:
         logging.getLogger(nome).setLevel(logging.DEBUG if nivel == "DEBUG" else logging.WARNING)
 
@@ -181,9 +211,9 @@ def avisar_chave_api(ambiente: Mapping[str, str] | None = None) -> bool:
     return True
 
 
-def iniciar(env_file: Path | None = None) -> Config:
+def iniciar(env_file: Path | None = None, arquivo_log: Path | None = None, console: bool = True) -> Config:
     """Carrega a configuração, liga o logging e faz as checagens de segurança."""
     config = carregar_config(env_file)
-    configurar_logging(config.log_level)
+    configurar_logging(config.log_level, arquivo_log, console)
     avisar_chave_api()
     return config
