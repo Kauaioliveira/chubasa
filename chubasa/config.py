@@ -67,6 +67,19 @@ class Config(BaseSettings):
     brain_timeout_first_s: float = Field(default=30.0, gt=0)
     brain_timeout_total_s: float = Field(default=90.0, gt=0)
 
+    # Texto para fala (Bloco 6)
+    tts_engine: str = "piper"
+    tts_voice: str = Field(default="pt_BR-faber-medium", min_length=1)
+    tts_edge_voice: str = Field(default="pt-BR-AntonioNeural", min_length=1)
+
+    @field_validator("tts_engine")
+    @classmethod
+    def _motor_tts(cls, valor: str) -> str:
+        valor = valor.strip().lower()
+        if valor not in ("piper", "edge"):
+            raise ValueError("use piper ou edge")
+        return valor
+
     @field_validator("stt_device")
     @classmethod
     def _dispositivo_stt(cls, valor: str) -> str:

@@ -308,7 +308,7 @@ async def frases(pedacos: AsyncIterator[str], minimo: int = 12, maximo: int = 22
 
 # ---------------------------------------------------------------- comando
 
-async def _conversar(config, perguntas: list[str]) -> int:
+async def _conversar(config, perguntas: list[str], falante=None) -> int:
     async with criar_cerebro(config) as cerebro:
         interativo = not perguntas
         if interativo:
@@ -326,7 +326,20 @@ async def _conversar(config, perguntas: list[str]) -> int:
             inicio = time.perf_counter()
             async for frase in frases(cerebro.responder(pergunta)):
                 print(f"  [{time.perf_counter() - inicio:5.2f} s] {frase}", flush=True)
+                if falante is not None:
+                    falante.falar(frase)  # começa a falar enquanto o resto ainda chega
+            if falante is not None:
+                await asyncio.to_thread(falante.esperar)
 
 
-def comando_perguntar(config, perguntas: list[str]) -> int:
-    return asyncio.run(_conversar(config, list(perguntas)))
+def comando_perguntar(config, perguntas: list[str], falar: bool = False) -> int:
+    falante = None
+    if falar:
+        from chubasa.tts import criar_falante
+
+        falante = criar_falante(config)
+    try:
+        return asyncio.run(_conversar(config, list(perguntas), falante))
+    finally:
+        if falante is not None:
+            falante.fechar()

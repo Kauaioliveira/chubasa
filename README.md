@@ -40,6 +40,8 @@ python -m chubasa escutar --salvar-comando comando.wav   # idem, salvando o últ
 python -m chubasa cadastrar-voz  # grava 10 a 20 frases suas e salva a impressão de voz
 python -m chubasa transcrever    # fale depois do bip e veja o texto (ou passe um WAV de 16 kHz)
 python -m chubasa perguntar "pergunta 1" "pergunta 2"   # conversa por texto, mostrando o tempo de cada frase
+python -m chubasa perguntar --falar "pergunta"           # idem, falando a resposta frase por frase
+python -m chubasa falar "Olá!"   # testa a voz
 ```
 
 ## Palavra-chave
@@ -95,6 +97,17 @@ claude        # dentro dele, use /login e entre com a conta do plano
   e é cortada em frases para a fala começar antes do fim.
 - Sem internet, limite do plano, falta de login ou demora viram uma frase falada de aviso.
 - Modelo em `BRAIN_MODEL` (padrão `sonnet`; `haiku` responde mais rápido).
+
+## Voz do assistente
+
+[Piper](https://github.com/OHF-Voice/piper1-gpl) local, voz `pt_BR-faber-medium` (`TTS_VOICE`),
+baixada na primeira vez para `models/piper/` (~60 MB). A resposta é falada frase por frase:
+enquanto uma frase toca, a próxima já está sendo sintetizada, então a fala começa antes de o
+Claude terminar de responder. O assistente sabe quando está falando (para não se ouvir) e pode
+ser interrompido na hora.
+
+Alternativa com voz mais natural, mas pela internet: `TTS_ENGINE=edge` (instale com
+`python -m pip install -e ".[edge]"`; voz em `TTS_EDGE_VOICE`).
 
 ## Verificação de voz
 

@@ -34,6 +34,10 @@ def criar_parser() -> argparse.ArgumentParser:
 
     perguntar = sub.add_parser("perguntar", help="conversa com o Claude por texto (testa o Bloco 5)")
     perguntar.add_argument("perguntas", nargs="*", help="perguntas em sequência; sem nenhuma, modo interativo")
+    perguntar.add_argument("--falar", action="store_true", help="fala as respostas (TTS) frase por frase")
+
+    falar = sub.add_parser("falar", help="fala um texto com a voz configurada")
+    falar.add_argument("texto")
 
     cadastro = sub.add_parser("cadastrar-voz", help="grava frases suas e salva a impressão de voz")
     cadastro.add_argument("--frases", type=int, default=15, help="quantas frases ler (10 a 20)")
@@ -47,7 +51,11 @@ def executar(args: argparse.Namespace, config: Config) -> int:
     if args.comando == "perguntar":
         from chubasa.brain import comando_perguntar
 
-        return comando_perguntar(config, args.perguntas)
+        return comando_perguntar(config, args.perguntas, args.falar)
+    if args.comando == "falar":
+        from chubasa.tts import comando_falar
+
+        return comando_falar(config, args.texto)
 
     from chubasa import audio
 
@@ -93,6 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     from chubasa.audio import ErroDeAudio
     from chubasa.speaker import ErroVoz
     from chubasa.stt import ErroSTT
+    from chubasa.tts import ErroTTS
     from chubasa.vad import ErroVAD
     from chubasa.wakeword import ErroWakeWord
 
@@ -112,6 +121,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except ErroSTT as erro:
         print(f"Erro na transcrição: {erro}", file=sys.stderr)
+        return 1
+    except ErroTTS as erro:
+        print(f"Erro na voz: {erro}", file=sys.stderr)
         return 1
 
 
