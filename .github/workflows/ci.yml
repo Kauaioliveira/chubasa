@@ -27,6 +27,13 @@ jobs:
       - name: Instalar
         run: python -m pip install -e ".[dev]"
 
+      - name: openWakeWord sem tflite (Linux)
+        if: runner.os == 'Linux'
+        run: python -m pip install --no-deps "openwakeword>=0.6,<0.7"
+
+      - name: openWakeWord importa
+        run: python -c "import openwakeword.model, openwakeword.utils"
+
       - name: Testes
         run: python -m pytest -v
 

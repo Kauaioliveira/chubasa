@@ -15,7 +15,13 @@ Copy-Item .env.example .env
 python -m chubasa          # imprime "configuração ok"
 ```
 
-No Linux, instale antes o PortAudio (`sudo apt install libportaudio2`).
+No Linux, instale antes o PortAudio (`sudo apt install libportaudio2`) e, depois do
+`pip install -e`, o openWakeWord sem dependências (ele pede `tflite-runtime`, que não existe para
+Python 3.12; o Chubasa usa ONNX):
+
+```bash
+python -m pip install --no-deps "openwakeword>=0.6,<0.7"
+```
 
 ## Configuração
 

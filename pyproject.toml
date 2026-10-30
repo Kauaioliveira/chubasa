@@ -12,7 +12,15 @@ dependencies = [
     "numpy>=1.26",
     "pydantic-settings>=2.6",
     "sounddevice>=0.5",
-    "openwakeword>=0.6,<0.7",
+    # No Linux o openWakeWord 0.6 exige tflite-runtime, que não existe para Python 3.12.
+    # Só usamos ONNX: lá ele é instalado com --no-deps (veja o README) e as dependências
+    # que ele realmente usa vêm declaradas abaixo.
+    "openwakeword>=0.6,<0.7; platform_system != 'Linux'",
+    "onnxruntime>=1.16",
+    "scipy>=1.11",
+    "scikit-learn>=1.3",
+    "tqdm>=4.66",
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]
