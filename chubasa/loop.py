@@ -226,11 +226,13 @@ class Assistente:
                 timeout=self.conversa_s if conversa else None,
                 conversa=conversa,
             )
-            await self._descartar_eco()
             if resultado == "interrompido":
-                self.c.bip()
+                # Pega o áudio da palavra-chave antes de qualquer limpeza e não descarta nada:
+                # a pessoa já pode estar falando o próximo comando.
                 palavra = self.c.detector.audio_recente()
+                self.c.bip()
                 continue
+            await self._descartar_eco()
             if resultado == "respondeu" and self.conversa_s > 0:
                 palavra = None  # modo conversa: a próxima fala não precisa da palavra-chave
                 continue

@@ -59,9 +59,11 @@ class DetectorFalso:
     def __init__(self):
         self.processados = 0
         self.reinicios = 0
+        self.historico = []
 
     def processar(self, f):
         self.processados += 1
+        self.historico = (self.historico + [f])[-10:]  # como o real: guarda os últimos frames
         tipo = int(f[0])
         if tipo == PALAVRA:
             return Deteccao("hey_chubasa", 0.6, 0.0)
@@ -70,10 +72,11 @@ class DetectorFalso:
         return None
 
     def audio_recente(self):
-        return np.full(800, 9, dtype=np.int16)
+        return np.concatenate(self.historico) if self.historico else np.zeros(0, np.int16)
 
     def reiniciar(self):
         self.reinicios += 1
+        self.historico = []
 
 
 class GravadorFalso:
@@ -203,7 +206,8 @@ def test_palavra_comando_resposta_e_volta_a_dormir():
     assert c.cerebro.perguntas == ["que horas são"]
     assert c.falante.falas == ["Agora são três horas.", "Mais alguma coisa?"]
     assert [e.value for e in estados[:5]] == ["ouvindo", "pensando", "falando", "conversando", "dormindo"]
-    assert c.verificador.chamadas[0] == (800, 1600)  # palavra-chave + comando juntos
+    palavra, comando = c.verificador.chamadas[0]
+    assert palavra > 0 and comando == 1600  # palavra-chave + comando juntos
     assert c.cerebro.iniciado and c.cerebro.fechado
     assert assistente.interacoes == 1
 
@@ -282,7 +286,9 @@ def test_interromper_com_palavra_forte_e_voz_verificada():
     rodar(assistente)
 
     assert c.falante.interrupcoes >= 1
-    assert c.gravador.chamadas[1][0] == 800  # depois de interromper, grava com a palavra-chave
+    # depois de interromper, grava e verifica com o áudio da palavra-chave (não vazio)
+    assert c.gravador.chamadas[1][0] > 0
+    assert c.verificador.chamadas[-1][0] > 0
 
 
 def test_sem_voz_cadastrada_nao_interrompe():
