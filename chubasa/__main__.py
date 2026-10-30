@@ -29,6 +29,9 @@ def criar_parser() -> argparse.ArgumentParser:
     escutar.add_argument("--salvar-comando", type=Path, default=None, metavar="ARQUIVO.wav",
                          help="salva o último comando gravado (para conferir o corte do VAD)")
 
+    transcrever = sub.add_parser("transcrever", help="transcreve um WAV ou o que você falar depois do bip")
+    transcrever.add_argument("arquivo", type=Path, nargs="?", default=None, help="WAV de 16 kHz (opcional)")
+
     cadastro = sub.add_parser("cadastrar-voz", help="grava frases suas e salva a impressão de voz")
     cadastro.add_argument("--frases", type=int, default=15, help="quantas frases ler (10 a 20)")
     cadastro.add_argument("--segundos", type=float, default=5.0, help="duração máxima de cada frase")
@@ -55,6 +58,10 @@ def executar(args: argparse.Namespace, config: Config) -> int:
 
         return comando_escutar(config, dispositivo, criar_verificador(config), criar_gravador(config),
                                args.salvar_comando)
+    if args.comando == "transcrever":
+        from chubasa.stt import comando_transcrever
+
+        return comando_transcrever(config, dispositivo, args.arquivo)
     if args.comando == "cadastrar-voz":
         from chubasa.speaker import comando_cadastrar_voz
 
@@ -77,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from chubasa.audio import ErroDeAudio
     from chubasa.speaker import ErroVoz
+    from chubasa.stt import ErroSTT
     from chubasa.vad import ErroVAD
     from chubasa.wakeword import ErroWakeWord
 
@@ -93,6 +101,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except ErroVAD as erro:
         print(f"Erro no detector de fala: {erro}", file=sys.stderr)
+        return 1
+    except ErroSTT as erro:
+        print(f"Erro na transcrição: {erro}", file=sys.stderr)
         return 1
 
 

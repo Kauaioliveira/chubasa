@@ -55,6 +55,21 @@ class Config(BaseSettings):
     vad_max_recording_s: float = Field(default=30.0, gt=0)
     vad_preroll_s: float = Field(default=0.3, ge=0)
 
+    # Fala para texto (Bloco 4)
+    stt_model: str = "small"
+    stt_device: str = "cpu"
+    stt_compute_type: str = "int8"
+    stt_beam_size: int = Field(default=1, ge=1, le=10)
+    stt_cpu_threads: int = Field(default=0, ge=0)
+
+    @field_validator("stt_device")
+    @classmethod
+    def _dispositivo_stt(cls, valor: str) -> str:
+        valor = valor.strip().lower()
+        if valor not in ("cpu", "cuda", "auto"):
+            raise ValueError("use cpu, cuda ou auto")
+        return valor
+
     @field_validator("models_dir", "wake_model_path", "speaker_profile_path")
     @classmethod
     def _relativo_a_raiz(cls, valor: Path) -> Path:
@@ -103,6 +118,10 @@ def _mensagem_de_erro(erro: ValidationError, arquivo: Path) -> str:
     return "\n".join(linhas)
 
 
+# Bibliotecas que falam demais em INFO (requisições HTTP, progresso); só aparecem em DEBUG.
+BIBLIOTECAS_RUIDOSAS = ("httpx", "httpx2", "huggingface_hub", "faster_whisper", "speechbrain")
+
+
 def configurar_logging(nivel: str = "INFO") -> None:
     logging.basicConfig(
         level=nivel,
@@ -110,6 +129,8 @@ def configurar_logging(nivel: str = "INFO") -> None:
         datefmt="%H:%M:%S",
         force=True,
     )
+    for nome in BIBLIOTECAS_RUIDOSAS:
+        logging.getLogger(nome).setLevel(logging.DEBUG if nivel == "DEBUG" else logging.WARNING)
 
 
 def avisar_chave_api(ambiente: Mapping[str, str] | None = None) -> bool:

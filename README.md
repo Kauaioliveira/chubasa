@@ -38,6 +38,7 @@ python -m chubasa medidor        # volume do microfone ao vivo (Ctrl+C para sair
 python -m chubasa escutar        # detecta a palavra-chave, grava o comando até você parar de falar
 python -m chubasa escutar --salvar-comando comando.wav   # idem, salvando o último comando para ouvir
 python -m chubasa cadastrar-voz  # grava 10 a 20 frases suas e salva a impressão de voz
+python -m chubasa transcrever    # fale depois do bip e veja o texto (ou passe um WAV de 16 kHz)
 ```
 
 ## Palavra-chave
@@ -57,6 +58,23 @@ Depois do bip, o Chubasa grava o comando com o [Silero VAD](https://github.com/s
 pedacinho de antes (`VAD_PREROLL_S`) para não cortar a primeira sílaba e para depois de
 `VAD_SILENCE_END_S` de silêncio. Se ninguém falar em `VAD_NO_SPEECH_TIMEOUT_S`, volta a dormir;
 nenhum comando passa de `VAD_MAX_RECORDING_S`.
+
+## Fala para texto
+
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) local, em português fixo (`LANGUAGE`).
+O modelo é carregado uma vez e baixado na primeira execução para `models/whisper/` (`small`: ~460 MB).
+Cada transcrição loga o tempo gasto.
+
+Medido num Intel i7-8550U (4 núcleos, 2017), frase de 4,7 s, CPU `int8`, `beam_size=1`:
+
+| `STT_MODEL` | Tempo | Texto |
+| --- | --- | --- |
+| `small` (padrão) | 3,6 a 3,8 s | correto |
+| `base` | 1,3 s | correto |
+
+Se a resposta parecer lenta, troque para `STT_MODEL=base`. GPU (`STT_DEVICE=cuda`) exige placa
+NVIDIA com driver para CUDA 12 e as bibliotecas cuBLAS/cuDNN 12; com driver antigo dá
+"CUDA driver version is insufficient", e o padrão `cpu` funciona em qualquer máquina.
 
 ## Verificação de voz
 
