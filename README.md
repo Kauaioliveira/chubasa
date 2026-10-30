@@ -29,7 +29,18 @@ cobrado por token.
 python -m chubasa dispositivos   # lista os microfones (use número ou parte do nome em MIC_DEVICE)
 python -m chubasa gravar-teste   # grava 5 s em teste.wav
 python -m chubasa medidor        # volume do microfone ao vivo (Ctrl+C para sair)
+python -m chubasa escutar        # detecta a palavra-chave e mostra o score (bip ao detectar)
 ```
+
+## Palavra-chave
+
+A detecção usa o [openWakeWord](https://github.com/dscripka/openWakeWord) em ONNX, 100% local.
+O modelo esperado é `models/hey_chubasa.onnx` (`WAKE_MODEL_PATH`). Enquanto ele não existir, o
+Chubasa usa o modelo pronto "hey jarvis" e avisa no log. Para treinar o "hey chubasa" com a sua
+voz, siga [treino/LEIA-ME.md](treino/LEIA-ME.md).
+
+Ajustes no `.env`: `WAKE_THRESHOLD` (score mínimo, 0 a 1) e `WAKE_COOLDOWN_S` (tempo ignorando
+novas detecções depois de uma). Os modelos baixados ficam em `models/openwakeword/`.
 
 ## Testes
 

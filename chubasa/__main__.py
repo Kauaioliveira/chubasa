@@ -25,6 +25,8 @@ def criar_parser() -> argparse.ArgumentParser:
     medidor = sub.add_parser("medidor", help="mostra o volume do microfone ao vivo")
     medidor.add_argument("--segundos", type=float, default=None, help="para sozinho depois de N s")
 
+    sub.add_parser("escutar", help="só detecta a palavra-chave e mostra o score")
+
     return parser
 
 
@@ -40,6 +42,10 @@ def executar(args: argparse.Namespace, config: Config) -> int:
         return audio.comando_gravar_teste(dispositivo, args.saida, args.segundos)
     if args.comando == "medidor":
         return audio.comando_medidor(dispositivo, args.segundos)
+    if args.comando == "escutar":
+        from chubasa.wakeword import comando_escutar
+
+        return comando_escutar(config, dispositivo)
 
     raise AssertionError(f"comando sem tratamento: {args.comando}")
 
@@ -57,11 +63,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     from chubasa.audio import ErroDeAudio
+    from chubasa.wakeword import ErroWakeWord
 
     try:
         return executar(args, config)
     except ErroDeAudio as erro:
         print(f"Erro de áudio: {erro}", file=sys.stderr)
+        return 1
+    except ErroWakeWord as erro:
+        print(f"Erro na palavra-chave: {erro}", file=sys.stderr)
         return 1
 
 

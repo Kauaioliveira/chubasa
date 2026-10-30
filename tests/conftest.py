@@ -9,6 +9,10 @@ VARIAVEIS = (
     "LANGUAGE",
     "MIC_DEVICE",
     "LOG_LEVEL",
+    "MODELS_DIR",
+    "WAKE_MODEL_PATH",
+    "WAKE_THRESHOLD",
+    "WAKE_COOLDOWN_S",
     "ANTHROPIC_API_KEY",
 )
 

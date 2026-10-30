@@ -19,6 +19,7 @@ models/
 *.wav
 gravacoes/
 treino/amostras/
+treino/*.zip
 
 # Documentos locais de trabalho
 CLAUDE.md

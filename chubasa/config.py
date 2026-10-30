@@ -35,6 +35,19 @@ class Config(BaseSettings):
     mic_device: str | None = None
     log_level: str = "INFO"
 
+    # Pasta de modelos baixados/treinados (fora do git)
+    models_dir: Path = Path("models")
+
+    # Wake word (Bloco 2)
+    wake_model_path: Path = Path("models/hey_chubasa.onnx")
+    wake_threshold: float = Field(default=0.5, gt=0, lt=1)
+    wake_cooldown_s: float = Field(default=2.0, ge=0)
+
+    @field_validator("models_dir", "wake_model_path")
+    @classmethod
+    def _relativo_a_raiz(cls, valor: Path) -> Path:
+        return caminho_do_projeto(valor)
+
     @field_validator("mic_device", mode="before")
     @classmethod
     def _vazio_vira_none(cls, valor: object) -> object:
