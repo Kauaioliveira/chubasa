@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chubasa"
+version = "0.1.0"
+description = "Assistente de voz que acorda com a palavra-chave e responde em voz."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pydantic-settings>=2.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["chubasa*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not hardware and not modelos'"
+markers = [
+    "hardware: precisa de microfone/alto-falante de verdade (rode com: pytest -m hardware)",
+    "modelos: baixa ou carrega modelos reais (rode com: pytest -m modelos)",
+]

@@ -1,0 +1,27 @@
+from __future__ import annotations
+
+import pytest
+
+from chubasa import config
+
+VARIAVEIS = (
+    "WAKE_WORD",
+    "LANGUAGE",
+    "MIC_DEVICE",
+    "LOG_LEVEL",
+    "ANTHROPIC_API_KEY",
+)
+
+
+@pytest.fixture(autouse=True)
+def ambiente_isolado(monkeypatch, tmp_path):
+    """Os testes nunca leem o .env real nem herdam variáveis da máquina."""
+    for nome in VARIAVEIS:
+        monkeypatch.delenv(nome, raising=False)
+    monkeypatch.setattr(config, "ARQUIVO_ENV", tmp_path / "nao-existe.env")
+
+
+@pytest.fixture
+def env_minimo(monkeypatch):
+    monkeypatch.setenv("WAKE_WORD", "hey chubasa")
+    monkeypatch.setenv("LANGUAGE", "pt")
