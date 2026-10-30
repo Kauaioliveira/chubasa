@@ -64,11 +64,11 @@ def test_sem_chave_api_nao_avisa(caplog):
     assert caplog.text == ""
 
 
-def test_main_sem_comando_imprime_ok(env_minimo, capsys):
-    assert main([]) == 0
+def test_main_config_imprime_ok(env_minimo, capsys):
+    assert main(["config"]) == 0
     assert capsys.readouterr().out.strip() == "configuração ok"
 
 
 def test_main_sem_env_sai_com_erro(capsys):
-    assert main([]) == 2
+    assert main(["config"]) == 2
     assert "WAKE_WORD" in capsys.readouterr().err

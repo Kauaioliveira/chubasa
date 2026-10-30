@@ -153,6 +153,16 @@ class Microfone:
         except queue.Empty:
             raise ErroDeAudio(f"O microfone não entregou áudio em {timeout:.1f} s.") from None
 
+    def descartar_pendentes(self) -> int:
+        """Joga fora o áudio que está na fila (ex.: eco da própria voz do assistente)."""
+        descartados = 0
+        while True:
+            try:
+                self._fila.get_nowait()
+                descartados += 1
+            except queue.Empty:
+                return descartados
+
     def frames(self, timeout: float = 1.0) -> Iterator[np.ndarray]:
         while True:
             yield self.ler(timeout)

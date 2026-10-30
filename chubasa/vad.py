@@ -143,8 +143,12 @@ class GravadorComando:
         self._frames_cauda = max(0, math.ceil(cauda_s / DURACAO_FRAME))
         self._frames_inicio = max(1, math.ceil(inicio_minimo_s / DURACAO_FRAME))
 
-    def gravar(self, frames: Iterator[np.ndarray], audio_palavra: np.ndarray) -> ResultadoGravacao:
+    def gravar(self, frames: Iterator[np.ndarray], audio_palavra: np.ndarray,
+               timeout_sem_fala_s: float | None = None) -> ResultadoGravacao:
+        """`timeout_sem_fala_s` substitui o padrão nesta gravação (ex.: o modo conversa)."""
         self._vad.reset()
+        frames_timeout = (self._frames_timeout if timeout_sem_fala_s is None
+                          else max(1, math.ceil(timeout_sem_fala_s / DURACAO_FRAME)))
         espera: deque[np.ndarray] = deque(maxlen=self._frames_preroll + self._frames_inicio)
         seguidos = 0
         comando: list[np.ndarray] | None = None
@@ -158,8 +162,8 @@ class GravadorComando:
                     comando = list(espera)  # pré-roll + os frames que confirmaram a fala
                     silencio = 0
                     log.debug("fala começou após %.2f s", (indice + 1) * DURACAO_FRAME)
-                elif indice + 1 >= self._frames_timeout:
-                    log.info("ninguém falou em %.1f s: voltando a dormir", self._frames_timeout * DURACAO_FRAME)
+                elif indice + 1 >= frames_timeout:
+                    log.info("ninguém falou em %.1f s", frames_timeout * DURACAO_FRAME)
                     return ResultadoGravacao("sem_fala", audio_palavra, np.zeros(0, dtype=np.int16))
                 continue
 

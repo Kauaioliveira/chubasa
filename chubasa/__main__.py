@@ -12,9 +12,11 @@ from chubasa.config import Config, ConfiguracaoInvalida, iniciar
 def criar_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m chubasa",
-        description="Assistente de voz Chubasa. Sem comando, só confere a configuração.",
+        description="Assistente de voz Chubasa. Sem comando, roda o assistente.",
     )
     sub = parser.add_subparsers(dest="comando", metavar="comando")
+
+    sub.add_parser("config", help="só confere a configuração (.env) e sai")
 
     sub.add_parser("dispositivos", help="lista os microfones disponíveis")
 
@@ -47,7 +49,7 @@ def criar_parser() -> argparse.ArgumentParser:
 
 
 def executar(args: argparse.Namespace, config: Config) -> int:
-    # Importa só o que o comando usa: mantém `python -m chubasa` rápido.
+    # Importa só o que o comando usa: mantém os comandos rápidos.
     if args.comando == "perguntar":
         from chubasa.brain import comando_perguntar
 
@@ -63,6 +65,10 @@ def executar(args: argparse.Namespace, config: Config) -> int:
         return audio.comando_dispositivos()
 
     dispositivo = audio.resolver_dispositivo(config.mic_device)
+    if args.comando is None:
+        from chubasa.loop import comando_assistente
+
+        return comando_assistente(config, dispositivo)
     if args.comando == "gravar-teste":
         return audio.comando_gravar_teste(dispositivo, args.saida, args.segundos)
     if args.comando == "medidor":
@@ -94,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
         print(erro, file=sys.stderr)
         return 2
 
-    if args.comando is None:
+    if args.comando == "config":
         print("configuração ok")
         return 0
 

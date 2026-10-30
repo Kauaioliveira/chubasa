@@ -39,4 +39,4 @@ jobs:
 
       - name: Configuração de exemplo carrega
         shell: bash
-        run: cp .env.example .env && python -m chubasa
+        run: cp .env.example .env && python -m chubasa config

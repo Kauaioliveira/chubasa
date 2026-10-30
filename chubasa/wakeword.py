@@ -86,6 +86,11 @@ class DetectorPalavra:
         self._modelo.reset()
         return Deteccao(self.nome_modelo, score, agora)
 
+    def reiniciar(self) -> None:
+        """Esquece o áudio recente (ex.: depois de o assistente falar, para não ouvir o próprio eco)."""
+        self._modelo.reset()
+        self._historico.clear()
+
     def audio_recente(self) -> np.ndarray:
         """Últimos segundos de áudio (int16), que contêm a palavra-chave logo após uma detecção."""
         if not self._historico:

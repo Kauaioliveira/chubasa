@@ -67,6 +67,11 @@ class Config(BaseSettings):
     brain_timeout_first_s: float = Field(default=30.0, gt=0)
     brain_timeout_total_s: float = Field(default=90.0, gt=0)
 
+    # Loop principal (Bloco 7)
+    loop_conversation_s: float = Field(default=6.0, ge=0)
+    loop_barge_in: bool = True
+    loop_barge_in_threshold: float = Field(default=0.8, gt=0, lt=1)
+
     # Texto para fala (Bloco 6)
     tts_engine: str = "piper"
     tts_voice: str = Field(default="pt_BR-faber-medium", min_length=1)
