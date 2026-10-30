@@ -379,3 +379,18 @@ def test_erro_numa_interacao_nao_derruba_o_assistente():
 
     assert loop.FALA_FALHA_INTERNA in c.falante.falas
     assert len(chamadas) == 2  # a segunda palavra-chave foi atendida normalmente
+
+
+def test_modelos_rodam_sempre_na_mesma_thread():
+    nomes = set()
+    assistente, c, _, _ = montar(roteiro(PALAVRA, ".", ".", ".", PALAVRA), gravacoes=[True, True, False, True, False],
+                                 textos=["a", "b", "c"], conversa_s=0)
+    original = c.transcritor.transcrever
+
+    def transcrever(audio):
+        nomes.add(threading.current_thread().name)
+        return original(audio)
+
+    c.transcritor.transcrever = transcrever
+    rodar(assistente)
+    assert len(nomes) == 1 and next(iter(nomes)).startswith("chubasa-modelos")

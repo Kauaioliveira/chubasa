@@ -19,6 +19,7 @@ import threading
 import time
 import unicodedata
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -112,6 +113,10 @@ class Assistente:
         self._tarefa_resposta: asyncio.Task | None = None
         self._calar_resposta = False
         self.interacoes = 0
+        # Threads fixas: modelos (MKL/oneDNN/onnxruntime) guardam buffers por thread; com o pool
+        # padrão do asyncio cada inferência caía numa thread nova e a memória crescia.
+        self._exec_audio = ThreadPoolExecutor(max_workers=1, thread_name_prefix="chubasa-audio")
+        self._exec_modelos = ThreadPoolExecutor(max_workers=1, thread_name_prefix="chubasa-modelos")
 
     # -- controle (seguro de chamar de outra thread, ex.: bandeja)
 
@@ -127,6 +132,12 @@ class Assistente:
     @property
     def pausado(self) -> bool:
         return self._pausado.is_set()
+
+    async def _no_audio(self, funcao, *args):
+        return await asyncio.get_running_loop().run_in_executor(self._exec_audio, funcao, *args)
+
+    async def _no_modelo(self, funcao, *args):
+        return await asyncio.get_running_loop().run_in_executor(self._exec_modelos, funcao, *args)
 
     def _mudar(self, estado: Estado) -> None:
         if estado != self.estado:
@@ -178,11 +189,13 @@ class Assistente:
         if self.c.ferramentas is not None:
             self.c.ferramentas.fechar()
         await self.c.cerebro.fechar()
+        self._exec_audio.shutdown(wait=False, cancel_futures=True)
+        self._exec_modelos.shutdown(wait=False, cancel_futures=True)
         log.info("Assistente encerrado.")
 
     async def _ler(self, timeout: float = 1.0) -> np.ndarray | None:
         try:
-            return await asyncio.to_thread(self._mic.ler, timeout)
+            return await self._no_audio(self._mic.ler, timeout)
         except ErroDeAudio:
             if self._parar.is_set():
                 return None
@@ -241,17 +254,17 @@ class Assistente:
     async def _interagir(self, palavra: np.ndarray, timeout: float | None, conversa: bool) -> str:
         """Grava, confere a voz, transcreve e responde. Devolve 'nada', 'respondeu' ou 'interrompido'."""
         self._mudar(Estado.CONVERSANDO if conversa else Estado.OUVINDO)
-        gravacao = await asyncio.to_thread(self.c.gravador.gravar, self._frames_da_thread(), palavra, timeout)
+        gravacao = await self._no_audio(self.c.gravador.gravar, self._frames_da_thread(), palavra, timeout)
         if not gravacao.teve_fala or self._parar.is_set():
             return "nada"
 
-        voz = await asyncio.to_thread(self.c.verificador.verificar, gravacao.audio_palavra, gravacao.audio_comando)
+        voz = await self._no_modelo(self.c.verificador.verificar, gravacao.audio_palavra, gravacao.audio_comando)
         if not voz.aceito:
             log.info("Voz não reconhecida: ignorando o comando.")
             return "nada"
 
         self._mudar(Estado.PENSANDO)
-        transcricao = await asyncio.to_thread(self.c.transcritor.transcrever, gravacao.audio_comando)
+        transcricao = await self._no_modelo(self.c.transcritor.transcrever, gravacao.audio_comando)
         texto = remover_palavra_chave(transcricao.texto)
         if not texto:
             return "nada"
@@ -305,7 +318,7 @@ class Assistente:
             deteccao = self.c.detector.processar(frame)
             if deteccao is None or deteccao.score < self.limiar_interrupcao:
                 continue
-            voz = await asyncio.to_thread(self.c.verificador.verificar, self.c.detector.audio_recente())
+            voz = await self._no_modelo(self.c.verificador.verificar, self.c.detector.audio_recente())
             if voz.aceito:
                 log.info("Interrompido pela palavra-chave (score %.2f).", deteccao.score)
                 self._calar()
