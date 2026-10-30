@@ -69,12 +69,27 @@ def baixar_voz_piper(voz: str, pasta: Path) -> Path:
     return modelo
 
 
+def sessao_onnx_sem_cache_por_formato(modelo: Path):
+    """Sessão do onnxruntime sem 'memory pattern'.
+
+    Com o padrão, o onnxruntime guarda um plano de memória para cada tamanho de entrada; como cada
+    frase tem um tamanho, a memória do assistente crescia sem parar (medido: 177 -> 342 MB em 200
+    frases). Sem ele fica estável (~150 MB) e a síntese fica só ~10% mais lenta.
+    """
+    import onnxruntime as ort
+
+    opcoes = ort.SessionOptions()
+    opcoes.enable_mem_pattern = False
+    return ort.InferenceSession(str(modelo), sess_options=opcoes, providers=["CPUExecutionProvider"])
+
+
 class SintetizadorPiper:
     def __init__(self, modelo: Path):
         from piper import PiperVoice
 
         try:
             self._voz = PiperVoice.load(modelo)
+            self._voz.session = sessao_onnx_sem_cache_por_formato(modelo)
         except Exception as erro:  # onnxruntime/json inválido
             raise ErroTTS(f"Não consegui carregar a voz {modelo}: {erro}. Apague o arquivo e rode de novo.") from erro
         self.taxa = self._voz.config.sample_rate

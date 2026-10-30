@@ -227,6 +227,7 @@ def test_piper_real_sintetiza_portugues():
     sintetizador = tts.SintetizadorPiper(tts.baixar_voz_piper("pt_BR-faber-medium", RAIZ / "models" / "piper"))
     audio = sintetizador.sintetizar("Bom dia, tudo bem?")
     assert sintetizador.taxa == 22_050
+    assert sintetizador._voz.session.get_session_options().enable_mem_pattern is False
     assert len(audio) / sintetizador.taxa > 0.5
     assert np.abs(audio).max() <= 1.0
 
