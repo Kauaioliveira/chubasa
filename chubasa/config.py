@@ -43,7 +43,12 @@ class Config(BaseSettings):
     wake_threshold: float = Field(default=0.5, gt=0, lt=1)
     wake_cooldown_s: float = Field(default=2.0, ge=0)
 
-    @field_validator("models_dir", "wake_model_path")
+    # Verificação de voz (Bloco 2.5)
+    speaker_verify: bool = True
+    speaker_profile_path: Path = Path("models/voz.npy")
+    speaker_threshold: float = Field(default=0.40, gt=-1, lt=1)
+
+    @field_validator("models_dir", "wake_model_path", "speaker_profile_path")
     @classmethod
     def _relativo_a_raiz(cls, valor: Path) -> Path:
         return caminho_do_projeto(valor)

@@ -36,6 +36,7 @@ python -m chubasa dispositivos   # lista os microfones (use número ou parte do 
 python -m chubasa gravar-teste   # grava 5 s em teste.wav
 python -m chubasa medidor        # volume do microfone ao vivo (Ctrl+C para sair)
 python -m chubasa escutar        # detecta a palavra-chave e mostra o score (bip ao detectar)
+python -m chubasa cadastrar-voz  # grava 10 a 20 frases suas e salva a impressão de voz
 ```
 
 ## Palavra-chave
@@ -47,6 +48,25 @@ voz, siga [treino/LEIA-ME.md](treino/LEIA-ME.md).
 
 Ajustes no `.env`: `WAKE_THRESHOLD` (score mínimo, 0 a 1) e `WAKE_COOLDOWN_S` (tempo ignorando
 novas detecções depois de uma). Os modelos baixados ficam em `models/openwakeword/`.
+
+## Verificação de voz
+
+Depois de ouvir a palavra-chave, o Chubasa confere se a voz é a da pessoa cadastrada, usando o
+trecho da palavra-chave junto com o comando. O modelo é o SpeechBrain ECAPA
+(`speechbrain/spkrec-ecapa-voxceleb`), em CPU, baixado na primeira vez (~80 MB) para `models/ecapa/`.
+
+```powershell
+python -m pip install -e ".[voz]"   # torch CPU + SpeechBrain
+python -m chubasa cadastrar-voz     # leia as frases que aparecerem (padrão: 15)
+python -m chubasa escutar           # cada ativação loga "voz: score=... -> aceita/rejeitada"
+```
+
+- O cadastro salva só a impressão de voz (`models/voz.npy`, um vetor de números); nenhuma gravação.
+- Sem cadastro, qualquer voz ativa o Chubasa (o log avisa). `SPEAKER_VERIFY=false` desliga de vez.
+- Calibre `SPEAKER_THRESHOLD` pelos scores do log: a sua voz deve ficar acima, a dos outros abaixo.
+- Isso filtra outras pessoas, mas não é senha: uma gravação da sua voz pode passar.
+- No Linux, instale o torch CPU antes para não baixar o CUDA:
+  `python -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu`.
 
 ## Testes
 

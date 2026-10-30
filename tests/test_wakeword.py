@@ -188,3 +188,71 @@ def test_modelo_real_nao_dispara_com_silencio_nem_ruido(tmp_path):
 
     assert not any(deteccoes)
     assert detector.ultimo_score < 0.1
+
+
+class MicrofoneFalso:
+    """Entrega os frames de um sinal e depois simula o Ctrl+C."""
+
+    def __init__(self, sinal: np.ndarray):
+        self._frames = [sinal[i:i + AMOSTRAS_POR_FRAME]
+                        for i in range(0, len(sinal) - AMOSTRAS_POR_FRAME + 1, AMOSTRAS_POR_FRAME)]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def ler(self, timeout: float = 1.0):
+        if not self._frames:
+            raise KeyboardInterrupt
+        return self._frames.pop(0)
+
+    def frames(self):
+        while True:
+            yield self.ler()
+
+
+class VerificadorFalso:
+    def __init__(self, ativo=True):
+        self.ativo = ativo
+        self.chamadas = []
+        self.preparado = False
+
+    def preparar(self):
+        self.preparado = True
+
+    def verificar(self, palavra, comando=None):
+        self.chamadas.append((palavra, comando))
+
+
+def test_escutar_verifica_palavra_mais_comando(monkeypatch):
+    # 3 frames sem nada, detecção no 4º, depois 2 s de "comando" (25 frames) e mais 5 frames.
+    sinal = np.arange(33 * AMOSTRAS_POR_FRAME, dtype=np.int64).astype(np.int16)
+    detector, _ = criar([0.0, 0.0, 0.0, 0.9], cooldown=10.0)
+    monkeypatch.setattr(wakeword, "criar_detector", lambda _config: detector)
+    monkeypatch.setattr(wakeword, "Microfone", lambda _disp: MicrofoneFalso(sinal))
+    monkeypatch.setattr(wakeword, "tocar_bip", lambda: None)
+    verificador = VerificadorFalso()
+
+    assert wakeword.comando_escutar(SimpleNamespace(), None, verificador, segundos_comando=2.0) == 0
+
+    assert verificador.preparado
+    assert len(verificador.chamadas) == 1
+    palavra, comando = verificador.chamadas[0]
+    np.testing.assert_array_equal(palavra, sinal[:4 * AMOSTRAS_POR_FRAME])
+    np.testing.assert_array_equal(comando, sinal[4 * AMOSTRAS_POR_FRAME:29 * AMOSTRAS_POR_FRAME])
+
+
+def test_escutar_sem_cadastro_nao_espera_comando(monkeypatch):
+    detector, _ = criar([0.9], cooldown=10.0)
+    monkeypatch.setattr(wakeword, "criar_detector", lambda _config: detector)
+    monkeypatch.setattr(wakeword, "Microfone", lambda _disp: MicrofoneFalso(np.zeros(5 * AMOSTRAS_POR_FRAME, np.int16)))
+    bips = []
+    monkeypatch.setattr(wakeword, "tocar_bip", lambda: bips.append(1))
+    verificador = VerificadorFalso(ativo=False)
+
+    wakeword.comando_escutar(SimpleNamespace(), None, verificador)
+
+    assert bips == [1]
+    assert verificador.chamadas == []

@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from chubasa import audio
+from sinais import fala_sintetica, seno
 
 DISPOSITIVOS = [
     {"name": "Mapeador de som da Microsoft - Input", "hostapi": 0, "max_input_channels": 2,
@@ -18,11 +19,6 @@ DISPOSITIVOS = [
      "max_output_channels": 0, "default_samplerate": 48000.0},
 ]
 APIS = [{"name": "MME"}, {"name": "Windows WASAPI"}]
-
-
-def seno(segundos: float, freq: float = 440.0, amplitude: float = 0.5) -> np.ndarray:
-    t = np.arange(int(segundos * audio.TAXA)) / audio.TAXA
-    return audio.para_int16(amplitude * np.sin(2 * np.pi * freq * t))
 
 
 class StreamFalso:
@@ -194,6 +190,34 @@ def test_comando_gravar_teste_avisa_se_mudo(microfone_falso, tmp_path, capsys):
     microfone_falso(np.zeros(20_000, dtype=np.int16))
     assert audio.comando_gravar_teste(None, tmp_path / "x.wav", segundos=1.0) == 1
     assert "mudo" in capsys.readouterr().out
+
+
+def test_aparar_silencio_mantem_a_fala_com_margem():
+    aparado = audio.aparar_silencio(fala_sintetica(), margem_s=0.15)
+    duracao = len(aparado) / audio.TAXA
+    assert 0.6 <= duracao <= 0.6 + 2 * 0.15 + 0.05
+    assert audio.dbfs(aparado) > -20
+
+
+def test_aparar_silencio_sem_fala_devolve_vazio():
+    silencio = np.zeros(audio.TAXA, dtype=np.int16)
+    assert audio.aparar_silencio(silencio).size == 0
+    assert audio.aparar_silencio(np.zeros(10, dtype=np.int16)).size == 0
+
+
+def test_ruido_constante_nao_conta_como_fala():
+    ventilador = audio.para_int16(np.random.default_rng(2).normal(0, 0.03, audio.TAXA * 2))
+    assert audio.aparar_silencio(ventilador).size == 0
+
+
+def test_fala_sobre_ruido_e_aparada():
+    gerador = np.random.default_rng(3)
+    ruido = gerador.normal(0, 0.03, int(2.5 * audio.TAXA))
+    inicio, fim = int(0.9 * audio.TAXA), int(1.5 * audio.TAXA)
+    t = np.arange(fim - inicio) / audio.TAXA
+    ruido[inicio:fim] += 0.4 * np.sin(2 * np.pi * 220 * t)
+    aparado = audio.aparar_silencio(audio.para_int16(ruido), margem_s=0.1)
+    assert 0.6 <= len(aparado) / audio.TAXA <= 0.6 + 2 * 0.1 + 0.05
 
 
 @pytest.mark.hardware

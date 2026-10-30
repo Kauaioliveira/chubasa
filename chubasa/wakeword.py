@@ -184,9 +184,13 @@ def tocar_bip() -> None:
 
 # ---------------------------------------------------------------- comando
 
-def comando_escutar(config, dispositivo: int | None) -> int:
+def comando_escutar(config, dispositivo: int | None, verificador=None, segundos_comando: float = 2.0) -> int:
+    """Detecta a palavra-chave e loga o score. Com `verificador` ativo, também confere a voz usando
+    a palavra-chave + os `segundos_comando` seguintes (o mesmo trecho que o loop principal vai usar)."""
     detector = criar_detector(config)
-    print(f"Escutando... diga \"{detector.frase}\" (Ctrl+C para sair)")
+    if verificador is not None:
+        verificador.preparar()
+    print(f"Escutando... diga \"{detector.frase}\" (Ctrl+C para sair)", flush=True)
     pico = 0.0
     inicio_janela = time.monotonic()
     try:
@@ -196,6 +200,14 @@ def comando_escutar(config, dispositivo: int | None) -> int:
                 if deteccao is not None:
                     log.info("Palavra-chave detectada! score=%.3f", deteccao.score)
                     tocar_bip()
+                    if verificador is not None and verificador.ativo:
+                        palavra = detector.audio_recente()
+                        comando = []
+                        for _ in range(math.ceil(segundos_comando / DURACAO_FRAME)):
+                            proximo = mic.ler()
+                            detector.processar(proximo)  # mantém o fluxo do modelo contínuo
+                            comando.append(proximo)
+                        verificador.verificar(palavra, np.concatenate(comando))
                     pico = 0.0
                     inicio_janela = time.monotonic()
                     continue

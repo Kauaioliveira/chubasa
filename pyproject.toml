@@ -25,6 +25,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+# Verificação de voz (SpeechBrain ECAPA em CPU). No Windows o torch do PyPI já é só CPU;
+# no Linux use --extra-index-url https://download.pytorch.org/whl/cpu para não baixar o CUDA.
+voz = [
+    "speechbrain>=1.0,<2",
+    "torch>=2.1",
+    "torchaudio>=2.1",
+]
 
 [tool.setuptools.packages.find]
 include = ["chubasa*"]

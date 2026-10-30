@@ -17,7 +17,15 @@ from pathlib import Path
 
 import numpy as np
 
-from chubasa.audio import TAXA, ErroDeAudio, dbfs, gravar, resolver_dispositivo, salvar_wav
+from chubasa.audio import (
+    TAXA,
+    ErroDeAudio,
+    aparar_silencio,
+    dbfs,
+    gravar,
+    resolver_dispositivo,
+    salvar_wav,
+)
 from chubasa.config import ConfiguracaoInvalida, carregar_config
 
 PASTA_PADRAO = Path(__file__).resolve().parent / "amostras"
@@ -48,31 +56,6 @@ FRASES_NEGATIVAS = [
 
 MINIMO_FALA_S = 0.3
 VOLUME_MINIMO_DBFS = -45.0
-
-
-def aparar_silencio(audio: np.ndarray, taxa: int = TAXA, margem_s: float = 0.15,
-                    acima_do_ruido_db: float = 10.0, abaixo_do_pico_db: float = 30.0,
-                    piso_dbfs: float = -50.0) -> np.ndarray:
-    """Corta o silêncio das pontas, mantendo uma margem. Devolve vazio se não houver fala.
-
-    Fala = trechos de 20 ms pelo menos `acima_do_ruido_db` acima do ruído de fundo (estimado pelo
-    percentil 10 da energia). Ruído constante, como ventilador, não conta como fala.
-    """
-    janela = int(0.02 * taxa)
-    n = len(audio) // janela
-    if n == 0:
-        return audio[:0]
-    blocos = audio[: n * janela].astype(np.float64).reshape(n, janela) / 32768.0
-    energia_db = 10 * np.log10(np.mean(blocos**2, axis=1) + 1e-12)
-    ruido_db = np.percentile(energia_db, 10)
-    limiar = max(ruido_db + acima_do_ruido_db, energia_db.max() - abaixo_do_pico_db, piso_dbfs)
-    ativos = np.flatnonzero(energia_db >= limiar)
-    if ativos.size == 0:
-        return audio[:0]
-    margem = int(margem_s * taxa)
-    inicio = max(0, ativos[0] * janela - margem)
-    fim = min(len(audio), (ativos[-1] + 1) * janela + margem)
-    return audio[inicio:fim]
 
 
 def proximo_indice(pasta: Path, prefixo: str) -> int:

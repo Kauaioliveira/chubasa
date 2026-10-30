@@ -8,6 +8,7 @@ import pytest
 
 from chubasa import audio
 from chubasa.config import RAIZ
+from sinais import fala_sintetica
 
 
 def carregar_script():
@@ -19,46 +20,6 @@ def carregar_script():
 
 
 ga = carregar_script()
-
-
-def fala_sintetica(antes_s=0.8, fala_s=0.6, depois_s=0.9, amplitude=0.3):
-    """Silêncio com um chiado bem baixo, um tom no meio (a 'fala') e silêncio de novo."""
-    gerador = np.random.default_rng(1)
-    t = np.arange(int(fala_s * audio.TAXA)) / audio.TAXA
-    partes = [
-        gerador.normal(0, 0.0005, int(antes_s * audio.TAXA)),
-        amplitude * np.sin(2 * np.pi * 220 * t),
-        gerador.normal(0, 0.0005, int(depois_s * audio.TAXA)),
-    ]
-    return audio.para_int16(np.concatenate(partes))
-
-
-def test_aparar_silencio_mantem_a_fala_com_margem():
-    aparado = ga.aparar_silencio(fala_sintetica(), margem_s=0.15)
-    duracao = len(aparado) / audio.TAXA
-    assert 0.6 <= duracao <= 0.6 + 2 * 0.15 + 0.05
-    assert audio.dbfs(aparado) > -20
-
-
-def test_aparar_silencio_sem_fala_devolve_vazio():
-    silencio = np.zeros(audio.TAXA, dtype=np.int16)
-    assert ga.aparar_silencio(silencio).size == 0
-    assert ga.aparar_silencio(np.zeros(10, dtype=np.int16)).size == 0
-
-
-def test_ruido_constante_nao_conta_como_fala():
-    ventilador = audio.para_int16(np.random.default_rng(2).normal(0, 0.03, audio.TAXA * 2))
-    assert ga.aparar_silencio(ventilador).size == 0
-
-
-def test_fala_sobre_ruido_e_aparada():
-    gerador = np.random.default_rng(3)
-    ruido = gerador.normal(0, 0.03, int(2.5 * audio.TAXA))
-    inicio, fim = int(0.9 * audio.TAXA), int(1.5 * audio.TAXA)
-    t = np.arange(fim - inicio) / audio.TAXA
-    ruido[inicio:fim] += 0.4 * np.sin(2 * np.pi * 220 * t)
-    aparado = ga.aparar_silencio(audio.para_int16(ruido), margem_s=0.1)
-    assert 0.6 <= len(aparado) / audio.TAXA <= 0.6 + 2 * 0.1 + 0.05
 
 
 def test_problemas_na_amostra():
