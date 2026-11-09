@@ -45,7 +45,8 @@ class Timer:
     _thread: threading.Timer | None = field(default=None, repr=False)
 
     def restante_s(self) -> float:
-        return max(0.0, self.fim - time.monotonic())
+        # Limita à duração: logo depois de criar, o arredondamento de float dava 300.00000000000006.
+        return max(0.0, min(float(self.duracao_s), self.fim - time.monotonic()))
 
 
 class Timers:

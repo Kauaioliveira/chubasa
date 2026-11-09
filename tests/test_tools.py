@@ -308,3 +308,13 @@ def test_volume_fora_do_windows_avisa(avisos):
     resultado = rodar(por_nome(f, "volume").handler({"acao": "aumentar"}))
     assert resultado.get("is_error") and "Windows" in texto(resultado)
     f.fechar()
+
+
+def test_restante_nunca_passa_da_duracao(avisos, monkeypatch):
+    import chubasa.tools.timers as modulo
+
+    timers = Timers(avisos)
+    monkeypatch.setattr(modulo.time, "monotonic", lambda: 0.1)  # relógio parado, como no Windows
+    timer = modulo.Timer(1, 300, "", 300.1 + 1e-13)
+    assert timer.restante_s() == 300.0
+    timers.cancelar_todos()
