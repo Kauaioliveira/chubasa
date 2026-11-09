@@ -86,7 +86,7 @@ Com o modelo pronto, diga "hey jarvis"; depois do treino (treino/LEIA-ME.md), "h
 - [ ] "Como está o tempo hoje em Sapucaia do Sul?" — diz "Deixa eu ver." e responde em 1 a 3
       frases com a previsão de hoje, sem ler links nem falar de fontes.
 - [ ] "Abre o site da Wikipedia", "pesquisa no Google pão de queijo", "procura no YouTube música
-      para estudar" — abre uma aba no navegador padrão para cada um.
+      para estudar" — abre uma aba no navegador de `TOOLS_BROWSER` (Edge por padrão) para cada um.
 - [ ] Com uma música tocando: "pausa", "continua", "próxima", "volta a anterior".
 - [ ] "Aumenta o volume", "abaixa um pouco o volume", "deixa no mudo" / "tira do mudo".
 

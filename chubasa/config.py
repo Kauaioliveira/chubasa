@@ -77,7 +77,18 @@ class Config(BaseSettings):
     # Ferramentas (Bloco 8)
     tools_enabled: bool = True
     tools_web: bool = True  # pesquisa e leitura de páginas (WebSearch/WebFetch)
-    tools_programs: str = "bloco de notas:notepad.exe;calculadora:calc.exe;chrome:chrome.exe;navegador:chrome.exe"
+    tools_programs: str = "bloco de notas:notepad.exe;calculadora:calc.exe;edge:msedge.exe;navegador:msedge.exe"
+    tools_browser: str = "edge"  # onde abrir sites e pesquisas: padrao, edge, chrome ou firefox
+
+    @field_validator("tools_browser")
+    @classmethod
+    def _navegador_valido(cls, valor: str) -> str:
+        from chubasa.tools.navegador import OPCOES_NAVEGADOR
+
+        valor = valor.strip().lower()
+        if valor not in OPCOES_NAVEGADOR:
+            raise ValueError(f"use um destes: {', '.join(OPCOES_NAVEGADOR)}")
+        return valor
 
     @field_validator("tools_programs")
     @classmethod

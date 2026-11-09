@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
+import shutil
+import subprocess
+import sys
 import webbrowser
 from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 from urllib.parse import quote_plus, urlsplit
 
 ESQUEMAS_PERMITIDOS = ("http", "https")
+# TOOLS_BROWSER: "padrao" segue o navegador padrão do Windows; os outros abrem sempre aquele.
+NAVEGADORES = {"edge": "msedge.exe", "chrome": "chrome.exe", "firefox": "firefox.exe"}
+OPCOES_NAVEGADOR = ("padrao", *NAVEGADORES)
 # "algo:" no começo que não é host:porta (ex.: javascript:, file:, mailto:, data:)
 _ESQUEMA = re.compile(r"^[a-z][a-z0-9+.\-]*:", re.IGNORECASE)
 _HOST_E_PORTA = re.compile(r"^[\w.\-]+:\d+(/|$)")
@@ -55,13 +64,61 @@ def _termo(termo: str) -> str:
     return termo
 
 
+def _caminho_app_paths(exe: str) -> str | None:
+    """Caminho registrado em App Paths (onde o Windows acha o msedge.exe, chrome.exe...)."""
+    import winreg
+
+    chave = rf"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe}"
+    for raiz in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+        try:
+            with winreg.OpenKey(raiz, chave) as k:
+                caminho = winreg.QueryValue(k, None)
+        except OSError:
+            continue
+        if caminho and Path(caminho.strip('"')).exists():
+            return caminho.strip('"')
+    return None
+
+
+def localizar_navegador(nome: str, app_paths: Callable[[str], str | None] | None = None) -> str | None:
+    exe = NAVEGADORES[nome]
+    if app_paths is None:
+        app_paths = _caminho_app_paths if sys.platform == "win32" else (lambda _exe: None)
+    return app_paths(exe) or shutil.which(exe) or shutil.which(Path(exe).stem)
+
+
+def abridor(nome: str = "padrao", localizar: Callable[[str], str | None] = localizar_navegador,
+            iniciar: Callable[[list[str]], Any] | None = None) -> Callable[[str], bool]:
+    """Função que abre uma URL no navegador escolhido em TOOLS_BROWSER."""
+    nome = (nome or "padrao").strip().lower()
+    if nome not in OPCOES_NAVEGADOR:
+        raise ValueError(f"TOOLS_BROWSER inválido: {nome!r} (use {', '.join(OPCOES_NAVEGADOR)})")
+    if nome == "padrao":
+        if sys.platform == "win32":
+            # O webbrowser do Python prefere o Chrome quando acha um instalado; o shell segue o padrão do Windows.
+            return lambda url: os.startfile(url) or True  # noqa: S606 - url já validada (http/https)
+        return lambda url: webbrowser.open(url, new=2)
+    iniciar = iniciar if iniciar is not None else (lambda args: subprocess.Popen(args))  # noqa: S603
+
+    def abrir(url: str) -> bool:
+        exe = localizar(nome)
+        if exe is None:
+            raise ErroNavegador(f"não achei o {nome} instalado")
+        iniciar([exe, url])
+        return True
+
+    return abrir
+
+
 class Navegador:
     def __init__(self, abrir: Callable[[str], bool] | None = None):
-        self._abrir = abrir if abrir is not None else (lambda url: webbrowser.open(url, new=2))
+        self._abrir = abrir if abrir is not None else abridor("padrao")
 
     def abrir(self, url: str) -> str:
         try:
             ok = self._abrir(url)
+        except ErroNavegador:
+            raise
         except Exception as erro:  # webbrowser/os.startfile podem levantar OSError e afins
             raise ErroNavegador(f"não consegui abrir o navegador ({erro})") from erro
         if ok is False:

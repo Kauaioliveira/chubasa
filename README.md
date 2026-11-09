@@ -160,7 +160,8 @@ pasta do projeto.
 | `LOOP_BARGE_IN`, `LOOP_BARGE_IN_THRESHOLD` | `true`, `0.8` | interromper a fala com a palavra-chave |
 | `TOOLS_ENABLED` | `true` | hora/data, timers/lembretes, programas, navegador, mídia e volume |
 | `TOOLS_WEB` | `true` | pesquisar na internet e ler páginas para perguntas atuais |
-| `TOOLS_PROGRAMS` | bloco de notas, calculadora, chrome | atalhos fixos `nome:comando;...` (além do Menu Iniciar) |
+| `TOOLS_PROGRAMS` | bloco de notas, calculadora, edge | atalhos fixos `nome:comando;...` (além do Menu Iniciar) |
+| `TOOLS_BROWSER` | `edge` | onde abrir sites e pesquisas: `edge`, `chrome`, `firefox` ou `padrao` (o padrão do Windows) |
 | `TTS_ENGINE` | `piper` | `edge` = voz pela internet (`pip install -e ".[edge]"`) |
 | `TTS_VOICE`, `TTS_EDGE_VOICE` | `pt_BR-faber-medium`, `pt-BR-AntonioNeural` | vozes |
 
@@ -190,7 +191,7 @@ pode passar.
   (avisam em voz e bip), **abrir programa** (os de `TOOLS_PROGRAMS` e os atalhos do Menu Iniciar;
   desinstaladores e ferramentas de sistema que apagam ou alteram coisas ficam de fora; nunca
   executa um caminho vindo da conversa), **abrir site** e **pesquisar no Google/YouTube** no
-  navegador padrão (só http/https), **mídia** (tocar/pausar, próxima, anterior, parar) e
+  navegador de `TOOLS_BROWSER` (só http/https), **mídia** (tocar/pausar, próxima, anterior, parar) e
   **volume** (aumentar, diminuir, mudo) pelas teclas multimídia do Windows. Nada apaga arquivo,
   envia mensagem ou controla mouse e teclado além das teclas de mídia.
 - A conversa fica aberta entre perguntas (tem histórico); "esquece" começa outra.

@@ -13,7 +13,7 @@ from typing import Any
 from chubasa.tools.atalhos import AtalhosDoMenuIniciar, ProgramaAmbiguo
 from chubasa.tools.hora import descrever_agora
 from chubasa.tools.midia import ACOES_MIDIA, ACOES_VOLUME, MAXIMO_PASSOS, ErroMidia, TeclasDeMidia
-from chubasa.tools.navegador import ErroNavegador, Navegador
+from chubasa.tools.navegador import ErroNavegador, Navegador, abridor
 from chubasa.tools.programas import ErroPrograma, ProgramasPermitidos
 from chubasa.tools.timers import ErroTimer, Timers, falar_duracao
 
@@ -191,4 +191,5 @@ def criar_ferramentas(config, avisar: Callable[[str], None]) -> Ferramentas:
     import sys
 
     atalhos = AtalhosDoMenuIniciar() if sys.platform == "win32" else None
-    return Ferramentas(avisar, ProgramasPermitidos.do_texto(config.tools_programs, atalhos=atalhos))
+    return Ferramentas(avisar, ProgramasPermitidos.do_texto(config.tools_programs, atalhos=atalhos),
+                       navegador=Navegador(abridor(config.tools_browser)))

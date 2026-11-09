@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from chubasa.tools.navegador import ErroNavegador, Navegador, normalizar_url, url_google, url_youtube
+from chubasa.tools.navegador import (
+    ErroNavegador,
+    Navegador,
+    abridor,
+    localizar_navegador,
+    normalizar_url,
+    url_google,
+    url_youtube,
+)
 
 
 @pytest.mark.parametrize("entrada, esperado", [
@@ -54,8 +62,40 @@ def test_sem_navegador_da_erro_claro():
         Navegador(quebra).abrir_site("wikipedia.org")
 
 
-def test_padrao_usa_webbrowser_em_aba_nova(monkeypatch):
+def test_padrao_fora_do_windows_usa_webbrowser_em_aba_nova(monkeypatch):
     chamadas = []
+    monkeypatch.setattr("sys.platform", "linux")
     monkeypatch.setattr("webbrowser.open", lambda url, new=0: chamadas.append((url, new)) or True)
     Navegador().abrir_site("wikipedia.org")
     assert chamadas == [("https://wikipedia.org", 2)]
+
+
+def test_padrao_no_windows_segue_o_navegador_padrao_do_sistema(monkeypatch):
+    # O webbrowser do Python escolhe o Chrome quando ele está instalado, mesmo com o Edge como padrão.
+    chamadas = []
+    monkeypatch.setattr("sys.platform", "win32")
+    monkeypatch.setattr("os.startfile", chamadas.append, raising=False)
+    Navegador(abridor("padrao")).abrir_site("wikipedia.org")
+    assert chamadas == ["https://wikipedia.org"]
+
+
+def test_navegador_escolhido_abre_sempre_nele():
+    iniciados = []
+    abrir = abridor("edge", localizar=lambda nome: rf"C:\Edge\{nome}.exe", iniciar=iniciados.append)
+    Navegador(abrir).pesquisar_no_google("tempo hoje")
+    assert iniciados == [[r"C:\Edge\edge.exe", "https://www.google.com/search?q=tempo+hoje"]]
+
+
+def test_navegador_escolhido_nao_instalado_da_erro_claro():
+    abrir = abridor("firefox", localizar=lambda _nome: None, iniciar=lambda _args: None)
+    with pytest.raises(ErroNavegador, match="não achei o firefox"):
+        Navegador(abrir).abrir_site("wikipedia.org")
+
+
+def test_localiza_pelo_app_paths_antes_do_path():
+    assert localizar_navegador("edge", app_paths=lambda exe: rf"C:\X\{exe}") == r"C:\X\msedge.exe"
+
+
+def test_navegador_invalido():
+    with pytest.raises(ValueError, match="TOOLS_BROWSER"):
+        abridor("opera")
