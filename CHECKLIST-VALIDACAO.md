@@ -80,7 +80,15 @@ Com o modelo pronto, diga "hey jarvis"; depois do treino (treino/LEIA-ME.md), "h
 - [ ] "Coloca um timer de 1 minuto" — confirma; depois de 1 minuto, bip + aviso falado.
       **Pronto quando:** "coloca um timer de 5 minutos" funciona.
 - [ ] "Me lembra de beber água em 2 minutos" — o aviso fala o lembrete.
-- [ ] "Abre a calculadora" — abre. "Abre o regedit" — recusa (não está em `TOOLS_PROGRAMS`).
+- [ ] "Abre a calculadora" — abre. "Abre o editor do registro" — recusa (ferramenta de sistema).
+- [ ] "Abre o Spotify" (ou outro programa que só esteja no Menu Iniciar) — abre. "Abre o Adobe" —
+      pergunta qual (Photoshop, Illustrator...).
+- [ ] "Como está o tempo hoje em Sapucaia do Sul?" — diz "Deixa eu ver." e responde em 1 a 3
+      frases com a previsão de hoje, sem ler links nem falar de fontes.
+- [ ] "Abre o site da Wikipedia", "pesquisa no Google pão de queijo", "procura no YouTube música
+      para estudar" — abre uma aba no navegador padrão para cada um.
+- [ ] Com uma música tocando: "pausa", "continua", "próxima", "volta a anterior".
+- [ ] "Aumenta o volume", "abaixa um pouco o volume", "deixa no mudo" / "tira do mudo".
 
 ## 10. Segundo plano (Bloco 9)
 

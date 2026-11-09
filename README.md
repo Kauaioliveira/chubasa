@@ -68,8 +68,16 @@ palavra-chave. Comandos de voz:
 
 - **"esquece"** / "nova conversa": apaga o histórico da conversa.
 - **"para"** / "cancela": para de falar.
-- "que horas são?", "coloca um timer de 5 minutos", "me lembra de tirar o bolo em 20 minutos",
-  "abre a calculadora".
+- Tempo e relógio: "que horas são?", "coloca um timer de 5 minutos", "me lembra de tirar o bolo
+  em 20 minutos".
+- Internet: "como está o tempo hoje em Sapucaia do Sul?", "quanto está o dólar?", "quem ganhou o
+  jogo do Grêmio ontem?" (pesquisa e responde em voz, sem ler links).
+- Navegador: "abre o site da Wikipedia", "pesquisa no Google receita de pão de queijo",
+  "procura no YouTube música para estudar".
+- Mídia e volume: "pausa a música", "próxima música", "volta a anterior", "aumenta o volume",
+  "abaixa um pouco o volume", "deixa no mudo".
+- Programas: "abre a calculadora", "abre o Spotify", "abre o Photoshop" (qualquer programa do
+  Menu Iniciar; se o nome servir para mais de um, ele pergunta qual).
 
 ### Ícone na bandeja
 
@@ -150,8 +158,9 @@ pasta do projeto.
 | `BRAIN_TIMEOUT_FIRST_S`, `BRAIN_TIMEOUT_TOTAL_S` | `30`, `90` | desiste e avisa depois disso |
 | `LOOP_CONVERSATION_S` | `6` | modo conversa depois de responder (0 = desliga) |
 | `LOOP_BARGE_IN`, `LOOP_BARGE_IN_THRESHOLD` | `true`, `0.8` | interromper a fala com a palavra-chave |
-| `TOOLS_ENABLED` | `true` | hora/data, timers/lembretes, abrir programas |
-| `TOOLS_PROGRAMS` | bloco de notas, calculadora, chrome | programas permitidos, `nome:comando;...` |
+| `TOOLS_ENABLED` | `true` | hora/data, timers/lembretes, programas, navegador, mídia e volume |
+| `TOOLS_WEB` | `true` | pesquisar na internet e ler páginas para perguntas atuais |
+| `TOOLS_PROGRAMS` | bloco de notas, calculadora, chrome | atalhos fixos `nome:comando;...` (além do Menu Iniciar) |
 | `TTS_ENGINE` | `piper` | `edge` = voz pela internet (`pip install -e ".[edge]"`) |
 | `TTS_VOICE`, `TTS_EDGE_VOICE` | `pt_BR-faber-medium`, `pt-BR-AntonioNeural` | vozes |
 
@@ -172,10 +181,18 @@ pode passar.
 
 - A conversa usa o Claude pelo Claude Agent SDK com o login do plano Pro. `ANTHROPIC_API_KEY`,
   `ANTHROPIC_AUTH_TOKEN` e `ANTHROPIC_BASE_URL` são removidas do ambiente antes de abrir a conversa.
-- As ferramentas embutidas (arquivos, terminal, web) ficam desligadas; não são carregadas
-  configurações nem servidores MCP da máquina. Só estas ferramentas do próprio assistente ficam
-  liberadas: **hora/data**, **timers e lembretes** (avisam em voz e bip), **abrir programa** (só os
-  de `TOOLS_PROGRAMS`). Nada apaga arquivo nem envia mensagem.
+- Das ferramentas embutidas do Claude Code, só **pesquisa na internet** e **leitura de páginas**
+  (WebSearch/WebFetch, com `TOOLS_WEB=true`) podem ser ligadas; arquivos, terminal e as demais
+  ficam sempre bloqueadas. Não são carregadas configurações nem servidores MCP da máquina.
+- O conteúdo das páginas é tratado como informação, nunca como ordem: o assistente não segue
+  instruções que venham de sites ou resultados de busca.
+- Ferramentas do próprio assistente (allowlist explícita): **hora/data**, **timers e lembretes**
+  (avisam em voz e bip), **abrir programa** (os de `TOOLS_PROGRAMS` e os atalhos do Menu Iniciar;
+  desinstaladores e ferramentas de sistema que apagam ou alteram coisas ficam de fora; nunca
+  executa um caminho vindo da conversa), **abrir site** e **pesquisar no Google/YouTube** no
+  navegador padrão (só http/https), **mídia** (tocar/pausar, próxima, anterior, parar) e
+  **volume** (aumentar, diminuir, mudo) pelas teclas multimídia do Windows. Nada apaga arquivo,
+  envia mensagem ou controla mouse e teclado além das teclas de mídia.
 - A conversa fica aberta entre perguntas (tem histórico); "esquece" começa outra.
 - Sem internet, limite do plano, falta de login ou demora viram uma frase falada de aviso.
 - O uso conta nos mesmos limites do plano Pro que o chat e o Claude Code.
@@ -195,6 +212,7 @@ Notebook com Intel i7-8550U (4 núcleos, 2017), 16 GB de RAM, sem GPU utilizáve
 | Carregar todos os modelos | ~26 s (`small` + verificação de voz + voz) |
 | Memória do processo | ~950 MB e estável (teste de 20 min, 52 interações, `base` + verificação de voz) |
 | Transcrição dentro do loop, `base` | mediana 0,97 s por comando |
+| Pergunta com pesquisa na internet (tempo hoje) | "Deixa eu ver." em ~1,3 s; resposta em ~20 a 23 s |
 
 A latência do cérebro (pergunta até o primeiro trecho da resposta) depende do plano e da rede e é
 registrada no log a cada pergunta.
@@ -213,6 +231,9 @@ registrada no log a cada pergunta.
 - **Memória:** o assistente usa ~1 GB. Com pouca RAM livre a transcrição pode falhar ("failed to
   allocate memory"); ele avisa em voz, registra no log e continua. Feche programas ou use `STT_MODEL=base`.
 - **"hey jarvis" até treinar:** o modelo próprio depende do kit de treino.
+- **Mídia e volume só no Windows:** no Linux essas ferramentas respondem que não são suportadas.
+- **Nomes de programas em inglês:** os atalhos do Menu Iniciar usam o idioma do Windows; o
+  assistente tenta o nome em inglês se o português não achar.
 
 ## Testes
 
