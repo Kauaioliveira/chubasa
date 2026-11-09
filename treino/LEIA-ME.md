@@ -39,7 +39,9 @@ Resultado: `treino\amostras\positivas\*.wav`, `treino\amostras\negativas\*.wav` 
      (ex.: 20000) e `PASSOS` (ex.: 50000); demora mais.
    - **2. Ambiente:** cria um Python 3.10 separado com as bibliotecas de treino (~5 min).
    - **3. Dados:** baixa ecos de sala, ruído de fundo e 17 GB de features de fala (~15 min).
-   - **4. Suas gravações:** clique em "Escolher arquivos" e envie o `amostras.zip`.
+   - **4. Suas gravações:** clique em "Escolher arquivos" e envie o `amostras.zip`. Se preferir,
+     envie antes pelo painel "Arquivos" (ícone de pasta, à esquerda) para `/content`: a etapa
+     usa esse arquivo direto, sem pedir upload.
    - **6. Vozes sintéticas:** depois de gerar, ouça os exemplos. Se "chubasa" estiver soando
      errado, ajuste `FRASES`/`PRONUNCIAS` na etapa 1, apague `/content/modelo` e gere de novo.
    - **8 e 9:** aumento de dados e treino (a parte mais demorada).
