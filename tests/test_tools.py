@@ -12,8 +12,14 @@ from chubasa import brain
 from chubasa.config import ConfiguracaoInvalida, carregar_config
 from chubasa.tools import Ferramentas, NOME_SERVIDOR
 from chubasa.tools.hora import descrever_agora
+from chubasa.tools.navegador import Navegador
 from chubasa.tools.programas import ErroPrograma, ProgramasPermitidos
 from chubasa.tools.timers import ErroTimer, Timers, falar_duracao
+
+
+# Todas as ferramentas do assistente, na ordem em que são registradas (a allowlist)
+FERRAMENTAS_ESPERADAS = ["hora_data", "criar_timer", "listar_timers", "cancelar_timer", "abrir_programa",
+                         "abrir_site", "pesquisar_no_google", "pesquisar_no_youtube"]
 
 
 def rodar(coro):
@@ -43,8 +49,10 @@ def ferramentas(avisos):
     abertos = []
     programas = ProgramasPermitidos.do_texto("calculadora:calc.exe;bloco de notas:notepad.exe", abertos.append)
     agora = datetime(2026, 10, 30, 14, 5, tzinfo=timezone(timedelta(hours=-3), "BRT"))
-    f = Ferramentas(avisos, programas, relogio=lambda: agora)
+    sites = []
+    f = Ferramentas(avisos, programas, relogio=lambda: agora, navegador=Navegador(sites.append))
     f.abertos = abertos
+    f.sites = sites
     yield f
     f.fechar()
 
@@ -195,8 +203,7 @@ def test_ferramenta_programa(ferramentas):
 
 def test_allowlist_tem_so_as_ferramentas_do_assistente(ferramentas):
     opcoes = brain.criar_opcoes("sonnet", ferramentas)
-    assert opcoes.allowed_tools == [f"mcp__{NOME_SERVIDOR}__{n}" for n in
-                                    ("hora_data", "criar_timer", "listar_timers", "cancelar_timer", "abrir_programa")]
+    assert opcoes.allowed_tools == [f"mcp__{NOME_SERVIDOR}__{n}" for n in FERRAMENTAS_ESPERADAS]
     assert opcoes.tools == []
     assert list(opcoes.mcp_servers) == [NOME_SERVIDOR]
     assert opcoes.strict_mcp_config is True
@@ -266,8 +273,18 @@ def test_coloca_um_timer_de_5_minutos_pelo_cerebro(ferramentas):
     falado = rodar(fluxo())
 
     assert falado == ["Pronto, timer de cinco minutos."]
-    assert clientes[0].lista_de_ferramentas == ["hora_data", "criar_timer", "listar_timers", "cancelar_timer",
-                                                "abrir_programa"]
+    assert clientes[0].lista_de_ferramentas == FERRAMENTAS_ESPERADAS
     assert clientes[0].resultado == "Timer 1 criado: aviso em 5 minutos."
     [timer] = ferramentas.timers.ativos()
     assert timer.duracao_s == 300 and 295 < timer.restante_s() <= 300
+
+
+def test_ferramentas_do_navegador(ferramentas):
+    assert texto(rodar(por_nome(ferramentas, "abrir_site").handler({"url": "wikipedia.org"}))) ==         "Abri o site no navegador."
+    rodar(por_nome(ferramentas, "pesquisar_no_google").handler({"termo": "tempo em Sapucaia do Sul"}))
+    rodar(por_nome(ferramentas, "pesquisar_no_youtube").handler({"termo": "lo-fi & chuva"}))
+    recusado = rodar(por_nome(ferramentas, "abrir_site").handler({"url": "file:///C:/Windows/win.ini"}))
+    assert recusado.get("is_error") and "http" in texto(recusado)
+    assert ferramentas.sites == ["https://wikipedia.org",
+                                 "https://www.google.com/search?q=tempo+em+Sapucaia+do+Sul",
+                                 "https://www.youtube.com/results?search_query=lo-fi+%26+chuva"]

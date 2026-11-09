@@ -11,6 +11,7 @@ from collections.abc import Callable
 from typing import Any
 
 from chubasa.tools.hora import descrever_agora
+from chubasa.tools.navegador import ErroNavegador, Navegador
 from chubasa.tools.programas import ErroPrograma, ProgramasPermitidos
 from chubasa.tools.timers import ErroTimer, Timers, falar_duracao
 
@@ -30,9 +31,11 @@ class Ferramentas:
     """Junta o estado das ferramentas (timers, programas) e monta o servidor MCP in-process."""
 
     def __init__(self, avisar: Callable[[str], None], programas: ProgramasPermitidos,
-                 relogio: Callable[[], Any] | None = None, timers: Timers | None = None):
+                 relogio: Callable[[], Any] | None = None, timers: Timers | None = None,
+                 navegador: Navegador | None = None):
         self.timers = timers if timers is not None else Timers(avisar)
         self.programas = programas
+        self.navegador = navegador if navegador is not None else Navegador()
         self._relogio = relogio
         self.definicoes = self._definir()
 
@@ -53,6 +56,7 @@ class Ferramentas:
         from claude_agent_sdk import tool
 
         programas = self.programas
+        navegador = self.navegador
         timers = self.timers
         relogio = self._relogio
 
@@ -111,7 +115,38 @@ class Ferramentas:
                 return _texto(str(erro), erro=True)
             return _texto(f"Abri {nome}.")
 
-        return [hora_data, criar_timer, listar_timers, cancelar_timer, abrir_programa]
+        def no_navegador(acao: Callable[[str], str], valor: str, feito: str) -> dict[str, Any]:
+            try:
+                acao(valor)
+            except ErroNavegador as erro:
+                return _texto(f"Não abri: {erro}.", erro=True)
+            return _texto(feito)
+
+        @tool("abrir_site",
+              "Abre um site no navegador padrão. url: endereço http/https ou só o domínio "
+              "(ex.: 'wikipedia.org'). Use quando pedirem para abrir ou mostrar um site.",
+              {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]})
+        async def abrir_site(args: dict[str, Any]) -> dict[str, Any]:
+            return no_navegador(navegador.abrir_site, str(args.get("url", "")), "Abri o site no navegador.")
+
+        @tool("pesquisar_no_google",
+              "Abre no navegador a página de resultados do Google para o termo. Use quando pedirem "
+              "para pesquisar ou procurar algo NO NAVEGADOR; para só responder uma pergunta, use a "
+              "pesquisa na internet.",
+              {"type": "object", "properties": {"termo": {"type": "string"}}, "required": ["termo"]})
+        async def pesquisar_no_google(args: dict[str, Any]) -> dict[str, Any]:
+            return no_navegador(navegador.pesquisar_no_google, str(args.get("termo", "")),
+                                "Abri a pesquisa do Google no navegador.")
+
+        @tool("pesquisar_no_youtube",
+              "Abre no navegador a busca do YouTube para o termo (vídeos, músicas, clipes).",
+              {"type": "object", "properties": {"termo": {"type": "string"}}, "required": ["termo"]})
+        async def pesquisar_no_youtube(args: dict[str, Any]) -> dict[str, Any]:
+            return no_navegador(navegador.pesquisar_no_youtube, str(args.get("termo", "")),
+                                "Abri a busca do YouTube no navegador.")
+
+        return [hora_data, criar_timer, listar_timers, cancelar_timer, abrir_programa,
+                abrir_site, pesquisar_no_google, pesquisar_no_youtube]
 
 
 def criar_ferramentas(config, avisar: Callable[[str], None]) -> Ferramentas:
