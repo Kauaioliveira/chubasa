@@ -37,7 +37,8 @@ responder, diga numa frase que ainda não consegue fazer isso.
 
 PROMPT_COM_FERRAMENTAS = """\
 - Você tem ferramentas para saber a data e a hora, criar, listar e cancelar timers e lembretes, \
-abrir programas do computador, abrir sites e pesquisas do Google ou do YouTube no navegador. \
+abrir programas do computador, abrir sites e pesquisas do Google ou do YouTube no navegador, \
+controlar a mídia que está tocando (tocar, pausar, próxima, anterior) e o volume. \
 Use-as quando o pedido precisar; para hora e data, sempre consulte a ferramenta. Quando pedirem \
 para abrir, mostrar ou pesquisar algo no navegador, use as ferramentas do navegador. Depois de \
 usar, confirme em uma frase curta.

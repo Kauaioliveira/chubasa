@@ -12,6 +12,7 @@ from chubasa import brain
 from chubasa.config import ConfiguracaoInvalida, carregar_config
 from chubasa.tools import Ferramentas, NOME_SERVIDOR
 from chubasa.tools.hora import descrever_agora
+from chubasa.tools.midia import TeclasDeMidia
 from chubasa.tools.navegador import Navegador
 from chubasa.tools.programas import ErroPrograma, ProgramasPermitidos
 from chubasa.tools.timers import ErroTimer, Timers, falar_duracao
@@ -19,7 +20,7 @@ from chubasa.tools.timers import ErroTimer, Timers, falar_duracao
 
 # Todas as ferramentas do assistente, na ordem em que são registradas (a allowlist)
 FERRAMENTAS_ESPERADAS = ["hora_data", "criar_timer", "listar_timers", "cancelar_timer", "abrir_programa",
-                         "abrir_site", "pesquisar_no_google", "pesquisar_no_youtube"]
+                         "abrir_site", "pesquisar_no_google", "pesquisar_no_youtube", "midia", "volume"]
 
 
 def rodar(coro):
@@ -50,7 +51,10 @@ def ferramentas(avisos):
     programas = ProgramasPermitidos.do_texto("calculadora:calc.exe;bloco de notas:notepad.exe", abertos.append)
     agora = datetime(2026, 10, 30, 14, 5, tzinfo=timezone(timedelta(hours=-3), "BRT"))
     sites = []
-    f = Ferramentas(avisos, programas, relogio=lambda: agora, navegador=Navegador(sites.append))
+    teclas = []
+    f = Ferramentas(avisos, programas, relogio=lambda: agora, navegador=Navegador(sites.append),
+                    teclas=TeclasDeMidia(lambda vk, flags: teclas.append((vk, flags)), "win32", 0))
+    f.teclas_enviadas = teclas
     f.abertos = abertos
     f.sites = sites
     yield f
@@ -288,3 +292,19 @@ def test_ferramentas_do_navegador(ferramentas):
     assert ferramentas.sites == ["https://wikipedia.org",
                                  "https://www.google.com/search?q=tempo+em+Sapucaia+do+Sul",
                                  "https://www.youtube.com/results?search_query=lo-fi+%26+chuva"]
+
+
+def test_ferramentas_de_midia_e_volume(ferramentas):
+    assert "tocar/pausar" in texto(rodar(por_nome(ferramentas, "midia").handler({"acao": "tocar_pausar"})))
+    assert texto(rodar(por_nome(ferramentas, "volume").handler({"acao": "aumentar", "passos": 2}))) == \
+        "Volume: aumentar 4%."
+    assert texto(rodar(por_nome(ferramentas, "volume").handler({"acao": "mudo"}))) == "Mudo ligado ou desligado."
+    assert rodar(por_nome(ferramentas, "midia").handler({"acao": "explodir"})).get("is_error")
+    assert [vk for vk, _ in ferramentas.teclas_enviadas] == [0xB3, 0xB3, 0xAF, 0xAF, 0xAF, 0xAF, 0xAD, 0xAD]
+
+
+def test_volume_fora_do_windows_avisa(avisos):
+    f = Ferramentas(avisos, ProgramasPermitidos({}, lambda _c: None), teclas=TeclasDeMidia(plataforma="linux"))
+    resultado = rodar(por_nome(f, "volume").handler({"acao": "aumentar"}))
+    assert resultado.get("is_error") and "Windows" in texto(resultado)
+    f.fechar()

@@ -11,6 +11,7 @@ from collections.abc import Callable
 from typing import Any
 
 from chubasa.tools.hora import descrever_agora
+from chubasa.tools.midia import ACOES_MIDIA, ACOES_VOLUME, MAXIMO_PASSOS, ErroMidia, TeclasDeMidia
 from chubasa.tools.navegador import ErroNavegador, Navegador
 from chubasa.tools.programas import ErroPrograma, ProgramasPermitidos
 from chubasa.tools.timers import ErroTimer, Timers, falar_duracao
@@ -32,10 +33,11 @@ class Ferramentas:
 
     def __init__(self, avisar: Callable[[str], None], programas: ProgramasPermitidos,
                  relogio: Callable[[], Any] | None = None, timers: Timers | None = None,
-                 navegador: Navegador | None = None):
+                 navegador: Navegador | None = None, teclas: TeclasDeMidia | None = None):
         self.timers = timers if timers is not None else Timers(avisar)
         self.programas = programas
         self.navegador = navegador if navegador is not None else Navegador()
+        self.teclas = teclas if teclas is not None else TeclasDeMidia()
         self._relogio = relogio
         self.definicoes = self._definir()
 
@@ -57,6 +59,7 @@ class Ferramentas:
 
         programas = self.programas
         navegador = self.navegador
+        teclas = self.teclas
         timers = self.timers
         relogio = self._relogio
 
@@ -145,8 +148,36 @@ class Ferramentas:
             return no_navegador(navegador.pesquisar_no_youtube, str(args.get("termo", "")),
                                 "Abri a busca do YouTube no navegador.")
 
+        @tool("midia",
+              "Controla o que está tocando no computador (Spotify, YouTube etc.) pelas teclas de mídia. "
+              "acao: tocar_pausar, proxima, anterior ou parar.",
+              {"type": "object", "properties": {"acao": {"type": "string", "enum": list(ACOES_MIDIA)}},
+               "required": ["acao"]})
+        async def midia(args: dict[str, Any]) -> dict[str, Any]:
+            try:
+                acao = teclas.midia(str(args.get("acao", "")))
+            except ErroMidia as erro:
+                return _texto(str(erro), erro=True)
+            return _texto(f"Mídia: {acao.replace('_', '/')} feito.")
+
+        @tool("volume",
+              "Muda o volume do computador. acao: aumentar, diminuir ou mudo (liga/desliga o mudo). "
+              f"passos: quantos passos de 2% (1 a {MAXIMO_PASSOS}; 'um pouco' = 5).",
+              {"type": "object", "properties": {
+                  "acao": {"type": "string", "enum": list(ACOES_VOLUME)},
+                  "passos": {"type": "integer", "minimum": 1, "maximum": MAXIMO_PASSOS}},
+               "required": ["acao"]})
+        async def volume(args: dict[str, Any]) -> dict[str, Any]:
+            try:
+                passos = teclas.volume(str(args.get("acao", "")), int(args.get("passos") or 5))
+            except (ErroMidia, ValueError, TypeError) as erro:
+                return _texto(str(erro), erro=True)
+            if passos == 0:
+                return _texto("Mudo ligado ou desligado.")
+            return _texto(f"Volume: {args['acao']} {passos * 2}%.")
+
         return [hora_data, criar_timer, listar_timers, cancelar_timer, abrir_programa,
-                abrir_site, pesquisar_no_google, pesquisar_no_youtube]
+                abrir_site, pesquisar_no_google, pesquisar_no_youtube, midia, volume]
 
 
 def criar_ferramentas(config, avisar: Callable[[str], None]) -> Ferramentas:
