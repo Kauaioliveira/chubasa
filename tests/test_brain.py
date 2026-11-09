@@ -246,3 +246,56 @@ def test_texto_longo_sem_ponto_corta_na_virgula():
 
 def test_sem_texto_nao_entrega_nada():
     assert frases_de("", "  ") == []
+
+
+def test_web_libera_so_pesquisa_e_leitura(monkeypatch, tmp_path):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    opcoes = brain.criar_opcoes("sonnet", web=True)
+
+    assert opcoes.tools == ["WebSearch", "WebFetch"]  # conjunto base de embutidas: só estas duas
+    assert opcoes.allowed_tools == ["WebSearch", "WebFetch"]
+    bloqueadas = set(opcoes.disallowed_tools)
+    assert {"Bash", "Read", "Write", "Edit", "Glob", "Grep", "Task", "NotebookEdit"} <= bloqueadas
+    assert not bloqueadas & {"WebSearch", "WebFetch"}
+    assert "pesquisar na internet" in opcoes.system_prompt
+    assert "nunca ordem" in opcoes.system_prompt  # conteúdo de página não é instrução
+    assert "não tem acesso a internet" not in opcoes.system_prompt
+
+
+def test_web_com_ferramentas_proprias(monkeypatch, tmp_path):
+    from chubasa.tools import Ferramentas
+    from chubasa.tools.programas import ProgramasPermitidos
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    ferramentas = Ferramentas(lambda _t: None, ProgramasPermitidos({"calculadora": "calc.exe"}, lambda _c: None))
+    try:
+        opcoes = brain.criar_opcoes("sonnet", ferramentas, web=True)
+    finally:
+        ferramentas.fechar()
+    assert opcoes.allowed_tools[-2:] == ["WebSearch", "WebFetch"]
+    assert all(n.startswith("mcp__chubasa__") for n in opcoes.allowed_tools[:-2])
+    assert "timers" in opcoes.system_prompt and "pesquisar na internet" in opcoes.system_prompt
+
+
+def test_criar_cerebro_respeita_tools_web(env_minimo, monkeypatch, tmp_path):
+    from chubasa.config import carregar_config
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("TOOLS_WEB", "false")
+    assert brain.criar_cerebro(carregar_config())._criar_opcoes("sonnet").tools == []
+    monkeypatch.setenv("TOOLS_WEB", "true")
+    assert brain.criar_cerebro(carregar_config())._criar_opcoes("sonnet").tools == ["WebSearch", "WebFetch"]
+
+
+def test_bloco_novo_depois_da_pesquisa_nao_gruda_frases():
+    inicio_bloco = StreamEvent(uuid="u", session_id="s",
+                               event={"type": "content_block_start", "index": 1,
+                                      "content_block": {"type": "text", "text": ""}})
+    cliente = ClienteFalso([[inicio_bloco, delta("Deixa eu ver."), inicio_bloco,
+                             delta("Hoje deve fazer vinte e dois graus. "), resultado()]])
+    cerebro, _ = cerebro_com(cliente)
+
+    async def fluxo():
+        return [f async for f in brain.frases(cerebro.responder("e o tempo?"))]
+
+    assert rodar(fluxo()) == ["Deixa eu ver.", "Hoje deve fazer vinte e dois graus."]

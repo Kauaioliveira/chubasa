@@ -76,6 +76,7 @@ class Config(BaseSettings):
 
     # Ferramentas (Bloco 8)
     tools_enabled: bool = True
+    tools_web: bool = True  # pesquisa e leitura de páginas (WebSearch/WebFetch)
     tools_programs: str = "bloco de notas:notepad.exe;calculadora:calc.exe;chrome:chrome.exe;navegador:chrome.exe"
 
     @field_validator("tools_programs")
