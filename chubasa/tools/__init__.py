@@ -10,6 +10,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from chubasa.tools.atalhos import AtalhosDoMenuIniciar, ProgramaAmbiguo
 from chubasa.tools.hora import descrever_agora
 from chubasa.tools.midia import ACOES_MIDIA, ACOES_VOLUME, MAXIMO_PASSOS, ErroMidia, TeclasDeMidia
 from chubasa.tools.navegador import ErroNavegador, Navegador
@@ -106,14 +107,20 @@ class Ferramentas:
 
         @tool(
             "abrir_programa",
-            "Abre um programa do computador. Só funciona com os nomes desta lista: "
-            + ", ".join(programas.nomes()) + ".",
-            {"type": "object", "properties": {"nome": {"type": "string", "enum": programas.nomes()}},
-             "required": ["nome"]},
+            "Abre um programa do computador pelo nome. Atalhos fixos: " + ", ".join(programas.nomes())
+            + (". Também abre qualquer programa do Menu Iniciar do Windows pelo nome (ex.: "
+               "'Spotify', 'Word', 'Paint')" if programas.atalhos is not None else "")
+            + ". Passe só o nome do programa, nunca um caminho. Os nomes do Menu Iniciar podem estar "
+              "em inglês: se não achar, tente o nome em inglês (ex.: 'mapa de caracteres' -> "
+              "'Character Map'). Se a resposta trouxer opções, pergunte à pessoa qual delas.",
+            {"type": "object", "properties": {"nome": {"type": "string"}}, "required": ["nome"]},
         )
         async def abrir_programa(args: dict[str, Any]) -> dict[str, Any]:
             try:
                 nome = programas.abrir(str(args.get("nome", "")))
+            except ProgramaAmbiguo as ambiguo:
+                return _texto(f"Encontrei mais de um programa para '{ambiguo.pedido}': "
+                              f"{', '.join(ambiguo.opcoes)}. Pergunte qual deles abrir.")
             except ErroPrograma as erro:
                 return _texto(str(erro), erro=True)
             return _texto(f"Abri {nome}.")
@@ -181,4 +188,7 @@ class Ferramentas:
 
 
 def criar_ferramentas(config, avisar: Callable[[str], None]) -> Ferramentas:
-    return Ferramentas(avisar, ProgramasPermitidos.do_texto(config.tools_programs))
+    import sys
+
+    atalhos = AtalhosDoMenuIniciar() if sys.platform == "win32" else None
+    return Ferramentas(avisar, ProgramasPermitidos.do_texto(config.tools_programs, atalhos=atalhos))

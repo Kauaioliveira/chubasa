@@ -172,7 +172,7 @@ def test_abre_so_programa_da_lista():
     assert programas.abrir("bloco de  notas") == "bloco de notas"
     assert abertos == ["calc.exe", "notepad.exe"]
     for pedido in ("cmd", "C:\\Windows\\System32\\cmd.exe", "calc.exe", "powershell -c del *"):
-        with pytest.raises(ErroPrograma, match="não está na lista"):
+        with pytest.raises(ErroPrograma, match="Não achei"):
             programas.abrir(pedido)
     assert abertos == ["calc.exe", "notepad.exe"]
 
